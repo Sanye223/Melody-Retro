@@ -17,7 +17,7 @@
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 
-**简体中文** | [English](README.en.md)
+**简体中文** | [English](README.en.md) | [日本語](README.ja.md)
 
 </div>
 
