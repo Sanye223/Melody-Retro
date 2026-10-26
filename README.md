@@ -192,6 +192,6 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
 
 <div align="center">
 
-如果这个项目对你有帮助，点个 ⭐ 就好。
+<sub><code>com.melody.retro</code> · versionCode 7 · 2.4.2-retro</sub>
 
 </div>
