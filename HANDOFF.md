@@ -23,8 +23,8 @@
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
-> 已于 2026-10-27 移除，源码归档在本机 `backup/2026-10-27_Melody-removed/Melody-1.6.2-src.zip`
-> （`backup/` 在 `.gitignore` 里，不在仓库中）。它的 57 项测试与 `tools/` 已迁移到本项目。
+> 已于 2026-10-27 彻底移除——代码、GitHub 历史、本机备份、手机安装包全部清除，**不可恢复**。
+> 它的 57 项测试与 `tools/` 在删除前已迁移到本项目，所以能力没有损失。
 >
 > **namespace 仍是 `com.melody.player`**，只有 `applicationId` 是 `com.melody.retro`。
 > 如果哪天要统一包名，需要重命名整个 `app/src/*/java/com/melody/player/` 目录 + 全量改 import，
@@ -248,8 +248,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 | 位置 | 内容 |
 | --- | --- |
 | `MelodyRetro/dist/Melody-Retro-2.4.2-{debug,release}.apk` | 当前版本 |
-| `backup/2026-10-27_Melody-removed/` | 已删除的 MD3 主版源码归档（**只在本机**，未随仓库发出） |
-| `backup/2026-10-27_v1.5.0/` | 更早的 1.5.0 / 2.3.0 版本归档（**只在本机**） |
+| `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`
 （2.x 是"视觉重构后"的独立版本线）。

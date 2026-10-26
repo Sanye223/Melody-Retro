@@ -7,7 +7,8 @@
 - 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.2-retro**，目录 `MelodyRetro/`
 - 最低支持 **Android 7.0（API 24）**，目标 **Android 15（API 35）**
 - 这是项目当前**唯一**的版本。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`）
-  已于 2026-10-27 移除，源码归档在本机 `backup/2026-10-27_Melody-removed/`（不入库）
+  已于 2026-10-27 彻底移除（代码、git 历史、本机备份、手机安装包全部清除），
+  它独有的测试与 `tools/` 在删除前已迁移到本项目
 
 ---
 
