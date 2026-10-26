@@ -19,7 +19,7 @@
 </div>
 
 <details>
-<summary><b>English version</b> &nbsp;—&nbsp; click to expand</summary>
+<summary><b>English</b> &nbsp;·&nbsp; 点击展开 &nbsp;—&nbsp; click to expand</summary>
 
 ### TL;DR
 
