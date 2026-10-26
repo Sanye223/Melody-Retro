@@ -1,0 +1,27 @@
+# 构建产物
+build/
+.gradle/
+.kotlin/
+app/build/
+*/app/build/
+*.apk
+*.aab
+
+# 本地环境（每台机器路径不同，不入库）
+local.properties
+.buildtools/
+
+# 参考仓库 / 临时分析文件
+.refs/
+dist/
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 分享包
+share/
