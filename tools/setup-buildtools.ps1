@@ -41,8 +41,19 @@ function Get-File([string]$Url, [string]$OutFile) {
     Write-Host ("  saved {0:N1} MB" -f ($len / 1MB))
 }
 
+# Accept both layouts: <bt>\jdk\bin\java.exe and <bt>\jdk\jdk-17.x\bin\java.exe
+function Resolve-JdkHome {
+    if (Test-Path (Join-Path $jdk 'bin\java.exe')) { return $jdk }
+    $nested = Get-ChildItem $jdk -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path (Join-Path $_.FullName 'bin\java.exe') } |
+        Select-Object -First 1
+    if ($nested) { return $nested.FullName }
+    return $null
+}
+
 # ---------------------------------------------------------------- 1. JDK 17 --
-if (Test-Path (Join-Path $jdk 'bin\java.exe')) {
+$javaHome = Resolve-JdkHome
+if ($javaHome) {
     Write-Host "[1/5] JDK 17 already present, skipping."
 } else {
     Write-Host "[1/5] Installing JDK 17 (Temurin) ..."
@@ -60,6 +71,9 @@ if (Test-Path (Join-Path $jdk 'bin\java.exe')) {
     Move-Item $inner.FullName $jdk
     Remove-Item -Recurse -Force $extract, $zip
 }
+
+if (-not $javaHome) { $javaHome = Resolve-JdkHome }
+if (-not $javaHome) { throw "JDK 17 not found after install" }
 
 # ------------------------------------------------------- 2. Android SDK CLI --
 $sdkManager = Join-Path $sdk 'cmdline-tools\latest\bin\sdkmanager.bat'
@@ -81,10 +95,10 @@ if (Test-Path $sdkManager) {
     Remove-Item -Recurse -Force $extract, $zip
 }
 
-$env:JAVA_HOME    = $jdk
+$env:JAVA_HOME    = $javaHome
 $env:ANDROID_HOME = $sdk
 $env:ANDROID_SDK_ROOT = $sdk
-$env:PATH = "$jdk\bin;$sdk\platform-tools;$sdk\cmdline-tools\latest\bin;$env:PATH"
+$env:PATH = "$javaHome\bin;$sdk\platform-tools;$sdk\cmdline-tools\latest\bin;$env:PATH"
 
 # ------------------------------------------------ 3. install SDK components --
 Write-Host "[3/5] Installing platform-tools / android-35 / build-tools 35.0.0 ..."
@@ -111,7 +125,7 @@ foreach ($proj in @('Melody', 'MelodyRetro')) {
 Write-Host ""
 Write-Host "Done. Build with:"
 Write-Host ""
-Write-Host "  `$env:JAVA_HOME='$jdk'"
+Write-Host "  `$env:JAVA_HOME='$javaHome'"
 Write-Host "  cd $root\Melody"
 Write-Host "  .\gradlew.bat --no-daemon --console=plain assembleDebug"
 Write-Host ""

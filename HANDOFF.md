@@ -28,6 +28,10 @@
 
 ## 1. 新电脑三步跑起来
 
+> 你是通过 `git clone` 拿到这个仓库的，还是拿到了一个 zip？两种都一样：
+> 仓库里**不含** `.buildtools/`、`build/`、`local.properties`——这些都是每台机器自己生成的，
+> 所以第一步必须先把工具链装好。
+
 ### 第 1 步：装构建工具链（约 1.5 GB，一次性）
 
 **不需要装 Android Studio**，仓库自带一键脚本：
@@ -188,7 +192,16 @@ cd Melody
 | `OnlineArtworkLiveTest` | **真实联网**：搜索→打分→下载→校验 | 同上 |
 
 `LrclibLiveTest` 走的是**生产代码**（真实 HTTP → `pickBest` → `parseLrc`），只是运行在 JVM，
-所以除 Compose 渲染外的全链路都能验证。当前全绿：**57 通过 / 0 失败 / 0 跳过**。
+所以除 Compose 渲染外的全链路都能验证。
+
+各工程实际覆盖不同，别以为两边一样：
+
+| 工程 | 测试结果 | 说明 |
+| --- | --- | --- |
+| `Melody` | **57 通过 / 0 失败 / 0 跳过** | 含 `OnlineArtworkLogicTest`(22) + `TrackInfoTest` |
+| `MelodyRetro` | **18 通过 / 0 失败 / 0 跳过** | 只有 `LyricsLogicTest`(8) + `QqMusicLogicTest`(8) + `LrclibLiveTest`(2)，**缺封面与 TrackInfo 的测试** |
+
+所以改动封面打分或歌曲信息解析后，**必须在 `Melody` 里跑测试**，Retro 那边测不出来。
 
 真机验证脚本（歌词）：
 
