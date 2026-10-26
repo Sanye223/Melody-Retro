@@ -14,6 +14,7 @@
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
 ![Version](https://img.shields.io/badge/version-2.4.2--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
+![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 </div>
 
@@ -30,6 +31,7 @@
 - [权限](#权限)
 - [已知限制](#已知限制)
 - [来源与致谢](#来源与致谢)
+- [许可证](#许可证)
 - [文档](#文档)
 
 ---
@@ -196,12 +198,29 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
 | 歌曲信息 `FLAC • 24-bit • 1411 kb/s • 48 kHz` 单行居中小字 | `getSongInfo()` |
 | 专辑 / 艺术家紧凑网格（10dp 圆角、10dp 间距） | 各 item 布局 |
 
-**关于许可证**：RetroMusicPlayer 以 **GPL-3.0** 发布。本项目是用 Kotlin + Jetpack Compose
-重新实现的 —— 原项目是 `compileSdk 36` + KSP/Realm 的传统 View + XML 架构，代码无法直接复用，
-本仓库**没有包含它的 Java / View / XML 代码**，因此在代码层面不构成 GPL-3.0 衍生作品。
-如果你打算把原项目的代码引入本仓库再分发，那部分需要遵循 GPL-3.0。
+**关于实现方式**：界面用 Kotlin + Jetpack Compose 重新实现 —— 原项目是 `compileSdk 36` +
+KSP/Realm 的传统 View + XML 架构，代码无法直接复用，本仓库**没有包含它的 Java / View / XML 代码**，
+对齐的是设计规范与布局参数。
 
 感谢 RetroMusicPlayer 的作者与所有贡献者 —— 这套设计语言值得被单独做一次实现。
+
+## 许可证
+
+本项目**以 [GPL-3.0](LICENSE) 开源**，与 RetroMusicPlayer 保持一致。
+
+```
+Copyright (C) 2026 Sanye223
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+```
+
+这意味着你可以自由地使用、修改、再分发，包括商用；但**分发衍生作品时必须同样以 GPL-3.0 开源**，
+并保留版权声明。完整条款见 [`LICENSE`](LICENSE)。
+
+上游项目 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 同样以 GPL-3.0 发布。
 
 ## 文档
 
