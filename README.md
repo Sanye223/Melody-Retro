@@ -16,6 +16,8 @@
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
+[English](README.en.md) | **简体中文**
+
 </div>
 
 ---
