@@ -25,3 +25,9 @@ captures/
 
 # 分享包
 share/
+
+# 凭据（绝不允许入库）
+.token
+*.token
+.env
+.env.*
