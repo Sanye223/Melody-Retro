@@ -1,40 +1,45 @@
-# 交接说明 — Melody 本地音乐播放器
+# 交接说明 — Melody Retro
 
-> 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `Melody/README.md`（很长，但准确），
+> 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody 1.6.2 / Melody Retro 2.4.2-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.2-retro
 
 ---
 
 ## 0. 一句话
 
-纯本地 Android 音乐播放器，Kotlin + Jetpack Compose + Media3(ExoPlayer)，严格 MD3。
+纯本地 Android 音乐播放器，Kotlin + Jetpack Compose + Media3(ExoPlayer)。
+视觉层按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做
+——**主题色来自当前歌曲封面**，不是壁纸。
 无后端、无账号，唯一的外网请求是**在线歌词**和**在线封面**两个功能。
 
-同一个工程有两个独立变体，**可以同时装在一台手机上**：
+| 项 | 值 |
+| --- | --- |
+| 目录 | `MelodyRetro/`（项目根就是这一层） |
+| 应用名 | Melody Retro |
+| applicationId | `com.melody.retro` |
+| namespace | `com.melody.player`（历史原因保留，见下） |
+| 版本 | 2.4.2-retro (versionCode 7) |
+| 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
-| 目录 | 应用名 | applicationId | 版本 |
-| --- | --- | --- | --- |
-| `Melody/` | 旋律 | `com.melody.player` | 1.6.2 (10) |
-| `MelodyRetro/` | Melody Retro | `com.melody.retro` | 2.4.2-retro (7) |
-
-`MelodyRetro` 的业务逻辑与 `Melody` **逐行相同**，只把视觉层换成 RetroMusicPlayer 的设计语言
-（封面取色、通栏迷你播放器、Retro 排版）。改功能时**两个目录都要改**，这是本项目最大的维护成本。
-
-> 注意：两个工程的 `namespace` 都是 `com.melody.player`（只有 `applicationId` 不同）。
-> 这是刻意保留的，这样两份代码几乎可以整文件复制粘贴；代价是**不能把其中一个当 library 依赖进另一个**。
+> **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
+> 已于 2026-10-27 移除，源码归档在本机 `backup/2026-10-27_Melody-removed/Melody-1.6.2-src.zip`
+> （`backup/` 在 `.gitignore` 里，不在仓库中）。它的 57 项测试与 `tools/` 已迁移到本项目。
+>
+> **namespace 仍是 `com.melody.player`**，只有 `applicationId` 是 `com.melody.retro`。
+> 如果哪天要统一包名，需要重命名整个 `app/src/*/java/com/melody/player/` 目录 + 全量改 import，
+> 是一次纯体力但有风险的改动，**不要在改功能时顺手做**。
 
 ---
 
 ## 1. 新电脑三步跑起来
 
-> 你是通过 `git clone` 拿到这个仓库的，还是拿到了一个 zip？两种都一样：
 > 仓库里**不含** `.buildtools/`、`build/`、`local.properties`——这些都是每台机器自己生成的，
 > 所以第一步必须先把工具链装好。
 
 ### 第 1 步：装构建工具链（约 1.5 GB，一次性）
 
-**不需要装 Android Studio**，仓库自带一键脚本：
+**不需要装 Android Studio**，仓库自带一键脚本（在项目根执行）：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\setup-buildtools.ps1
@@ -42,7 +47,7 @@ powershell -ExecutionPolicy Bypass -File tools\setup-buildtools.ps1
 
 它会下载 JDK 17（Temurin）+ Android cmdline-tools 到项目根 `.buildtools/`，
 安装 `platforms;android-35`、`build-tools;35.0.0`、`platform-tools`，接受 licenses，
-并为两个工程写好 `local.properties`。
+并写好 `MelodyRetro/local.properties`。
 
 > 已经有 Android Studio 的话也可以跳过，改用它的 SDK；只要保证
 > **JDK 17 + compileSdk 35 + build-tools 35.0.0**，并把 `local.properties` 指过去即可。
@@ -53,7 +58,7 @@ powershell -ExecutionPolicy Bypass -File tools\setup-buildtools.ps1
 export JAVA_HOME="<项目根>/.buildtools/jdk"
 export ANDROID_HOME="<项目根>/.buildtools/sdk"
 
-cd Melody
+cd MelodyRetro
 ./gradlew.bat --no-daemon --console=plain assembleDebug assembleRelease
 ```
 
@@ -65,8 +70,7 @@ cd Melody
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r Melody/dist/Melody-1.6.2-release.apk     # 已经有打好的
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -78,10 +82,13 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
 
 ## 2. 代码地图（改哪里）
 
-路径前缀 `Melody/app/src/main/java/com/melody/player/`：
+路径前缀 `MelodyRetro/app/src/main/java/com/melody/player/`：
 
 | 文件 | 职责 | 什么时候要动 |
 | --- | --- | --- |
+| `ui/theme/RetroColors.kt` | **封面取色**：accent / 渐变 / 迷你播放器底色 | 改配色逻辑、觉得取色偏了 |
+| `ui/screens/NowPlayingScreen.kt` | 正在播放：封面页 + 歌词页 Pager、渐变、控制区、歌曲信息 | 播放页所有视觉 |
+| `ui/components/MiniPlayer.kt` | 通栏色块迷你播放器 | 迷你播放器 |
 | `data/MediaLibraryRepository.kt` | MediaStore 扫描、派生专辑/艺术家、中文排序 | 改扫描范围、排序、无标签兜底 |
 | `data/FileNameMeta.kt` | 从文件名猜 `歌名 / 艺术家`（无 ID3 的文件） | 猜错歌名时 |
 | `data/ArtworkStore.kt` | 封面读取链路：内存 → 内嵌缓存 → 在线缓存 → 内嵌提取 | 封面显示不出来 |
@@ -98,10 +105,8 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
 | `playback/PlaybackService.kt` | `MediaSessionService`，通知/锁屏、音频焦点、拔耳机暂停 | 后台播放 |
 | `playback/PlayerManager.kt` | `MediaController` 封装，`StateFlow<PlayerUiState>` | 播放状态 |
 | `ui/AppRoot.kt` | 自适应 Scaffold、NavigationBar/Rail、NavHost、权限申请 | 导航结构 |
-| `ui/screens/NowPlayingScreen.kt` | 正在播放：封面页 + 歌词页 Pager、歌曲信息、控制区 | 播放页所有视觉 |
 | `ui/screens/SettingsScreen.kt` | 设置页（含歌词设置实时预览） | 设置项 |
-| `ui/theme/Theme.kt` | MD3 配色 + 动态取色 + 系统栏 | 主题 |
-| `ui/theme/RetroColors.kt` | **仅 Retro**：从封面字节取色 | Retro 配色 |
+| `ui/theme/Theme.kt` | MD3 配色（取色失败时兜底）+ 系统栏 | 主题 |
 
 测试在 `app/src/test/java/com/melody/player/`，共 **57 项**（见第 5 节）。
 
@@ -169,15 +174,16 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 负数 albumId 判空 | 必须用 `== 0L`，**不是** `<= 0L`（负数现在是合法 id） |
 | 旧负缓存 | `index.json` 的 `version` 已升到 **2**；读到旧版本必须丢弃 `misses`，否则"曾经没搜到"会让那首歌 7 天不再尝试 |
 | CDN 灰图 | QQ 音乐对不存在的专辑有时返回 200 + 一张灰色默认图。必须校验 content-type + 体积(6KB~4MB) + 魔数(JPEG/PNG/WebP) |
-| FAB/按钮叠加 | `Slider` 用自定义 thumb 要 `@OptIn(ExperimentalMaterial3Api::class)` |
+| `Slider` 自定义 thumb | 需要 `@OptIn(ExperimentalMaterial3Api::class)` |
 | 布局跳动 | 歌词放大动画**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
+| 取色死黑 | `Palette` 要优先 `vibrant` 而不是 `dominant`，否则大面积黑封面的专辑会得到一片黑 |
 
 ---
 
 ## 5. 测试
 
 ```bash
-cd Melody
+cd MelodyRetro
 ./gradlew.bat testDebugUnitTest                       # 57 项，含真实联网冒烟测试
 ./gradlew.bat testDebugUnitTest -PproxyHost=127.0.0.1 -PproxyPort=8080
 ```
@@ -187,26 +193,19 @@ cd Melody
 | `LyricsLogicTest` | LRC 解析 / offset / 多时间标签 / 二分定位 / 候选排序 | 8 |
 | `QqMusicLogicTest` | QQ 搜索 JSON、`&#58;` 还原、无歌词、异常码、选歌 | 8 |
 | `OnlineArtworkLogicTest` | 打分 / 归一化 / 文件名解析 / iTunes 解析 / 图片校验 | 22 |
-| `TrackInfoTest` | 位深解析（FLAC/WAV/AIFF）、码率估算、格式化 | — |
-| `LrclibLiveTest` | **真实联网**：QQ 搜索→取词→解析→定位，LRCLIB 兜底 | 跳网自动 skip |
-| `OnlineArtworkLiveTest` | **真实联网**：搜索→打分→下载→校验 | 同上 |
+| `TrackInfoTest` | 位深解析（FLAC/WAV/AIFF）、码率估算、格式化 | 13 |
+| `LrclibLiveTest` | **真实联网**：QQ 搜索→取词→解析→定位，LRCLIB 兜底 | 2（跳网自动 skip） |
+| `OnlineArtworkLiveTest` | **真实联网**：搜索→打分→下载→校验 | 4（同上） |
+
+当前全绿：**57 通过 / 0 失败 / 0 跳过**。
 
 `LrclibLiveTest` 走的是**生产代码**（真实 HTTP → `pickBest` → `parseLrc`），只是运行在 JVM，
 所以除 Compose 渲染外的全链路都能验证。
 
-各工程实际覆盖不同，别以为两边一样：
-
-| 工程 | 测试结果 | 说明 |
-| --- | --- | --- |
-| `Melody` | **57 通过 / 0 失败 / 0 跳过** | 含 `OnlineArtworkLogicTest`(22) + `TrackInfoTest` |
-| `MelodyRetro` | **18 通过 / 0 失败 / 0 跳过** | 只有 `LyricsLogicTest`(8) + `QqMusicLogicTest`(8) + `LrclibLiveTest`(2)，**缺封面与 TrackInfo 的测试** |
-
-所以改动封面打分或歌曲信息解析后，**必须在 `Melody` 里跑测试**，Retro 那边测不出来。
-
 真机验证脚本（歌词）：
 
 ```bash
-cd Melody && ./tools/verify_online_lyrics.sh
+cd MelodyRetro && ./tools/verify_online_lyrics.sh
 ```
 自动完成：装 APK → 授权 → 推送 `tools/sample-稻香.mp3`（带 ID3）→ 触发扫描 → 启动 App。
 
@@ -214,17 +213,15 @@ cd Melody && ./tools/verify_online_lyrics.sh
 
 ## 6. 当前状态与待办
 
-**最近修复**：无 ID3 标签的文件（例：`布拉格广场 - 蔡依林&周杰伦.mp3`）取不到封面。
-根因有两个 —— ① 三字段全空时直接不发请求还写 7 天负缓存；② 打分以专辑名为主判据，专辑空就 0 分。
-已通过「文件名兜底 + 主判据改为 `max(歌名, 专辑)` + 合成 albumId」修复，并联网实测命中
-（`QQ音乐 score=100 看我72变 - 蔡依林/周杰伦 87392 B`）。
+**最近一次改动**：删除主版本 `Melody`，迁移其独有资产（3 个测试类、`tools/`）到本项目，
+README 重写为自洽的单项目文档。
 
 **待真机确认**（用户还没反馈）：
 
 - [ ] 无标签 MP3 的封面能否补上；列表/播放页显示的歌名是否正确
 - [ ] 歌词当前行放大 1.10× 是否顺滑、有没有跳行
 - [ ] 歌曲信息一行（`FLAC • 24-bit • 1411 kb/s • 48 kHz`）在歌手名下方是否成图
-- [ ] Retro 版封面取色驱动的渐变/按钮颜色是否跟着新封面变
+- [ ] 封面取色驱动的渐变/按钮/迷你播放器颜色是否跟着换歌一起变
 
 若仍异常，抓日志：
 
@@ -240,8 +237,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 2. **不阻塞首帧**：封面先给占位音符，联网补图耗时超过 400ms 才显示小转圈（缓存命中不许闪）。
 3. **不打爆接口**：并发上限 2、同一专辑 in-flight 去重、负缓存 7 天、批量补全每张间隔 120ms。
 4. **不引起布局跳动**：动画只用 `graphicsLayer`；歌曲信息高度固定。
-5. **两个变体同步**：业务逻辑改动 `Melody/` 后，把同样的改动搬到 `MelodyRetro/`；
-   只有 `ui/theme/RetroColors.kt` 和 `NowPlayingScreen` / `MiniPlayer` / 详情页的视觉是各自独立的。
+5. **取色只在前台做**：`RetroColors` 在 `Dispatchers.IO` 上取色，取不到回退 MD3 `primary`，不许空屏或闪烁。
 6. **隐私**：在线请求只发 标题/艺术家/专辑/时长，不发设备标识、账号、播放记录。
 7. **两个开关关掉后，一个网络请求都不发**。
 
@@ -251,14 +247,14 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `Melody/dist/Melody-1.6.2-{debug,release}.apk` | 当前版本 |
 | `MelodyRetro/dist/Melody-Retro-2.4.2-{debug,release}.apk` | 当前版本 |
-| `backup/2026-10-27_v1.5.0/` | 上一个版本的源码 zip + 4 个 APK + 回滚说明（**只在原开发机上**，未随分享包发出） |
+| `backup/2026-10-27_Melody-removed/` | 已删除的 MD3 主版源码归档（**只在本机**，未随仓库发出） |
+| `backup/2026-10-27_v1.5.0/` | 更早的 1.5.0 / 2.3.0 版本归档（**只在本机**） |
 
-版本号约定：`versionCode` 每次发版 +1；`Melody` 用 `1.x.y`，`MelodyRetro` 用 `2.x.y-retro`
-（2.x 对应"视觉重构后"的独立版本线，与 1.x 的次版本号没有数值关系）。
+版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`
+（2.x 是"视觉重构后"的独立版本线）。
 
-打好的包用这两种方式校验：
+产物用这两种方式校验：
 
 ```bash
 aapt2 dump badging app-release.apk | head -3        # 看 package / versionName
@@ -269,6 +265,7 @@ apksigner verify --print-certs app-release.apk      # 看签名
 
 ## 9. 更详细的技术细节
 
-`Melody/README.md` 有 9 个章节，逐项写了：歌词三级加载与容错矩阵、封面打分表、图片校验阈值、
-缓存目录结构与 LRU、歌曲信息四项的来源与缺失策略、歌词设置三档持久化、工程结构树。
+`MelodyRetro/README.md` 有 10 个章节（0~9）：设计语言与取色实现、歌词三级加载与容错矩阵、
+封面打分表、图片校验阈值、缓存目录结构与 LRU、歌曲信息四项的来源与缺失策略、
+歌词设置持久化、工程结构树。
 遇到"为什么这么设计"的问题，先查那里，再改代码。

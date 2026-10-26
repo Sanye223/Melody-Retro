@@ -1,15 +1,14 @@
 # =============================================================================
 #  Build a slim, transferable ZIP of the whole project.
 #
-#  Includes : Melody/ + MelodyRetro/ source, HANDOFF.md, tools/,
-#             the two release APKs
+#  Includes : MelodyRetro/ source, HANDOFF.md, tools/, the release APK
 #  Excludes : build/ .gradle/ .kotlin/ dist/ local.properties .buildtools/
 #             .refs/ backup/  (all machine-specific or regenerable)
 #
 #  Usage (from the repo root):
 #    powershell -ExecutionPolicy Bypass -File tools\pack-share.ps1
 #
-#  Output: share\Melody-<version>-<yyyyMMdd>.zip   (~30 MB)
+#  Output: share\Melody-Retro-<version>-<yyyyMMdd>.zip   (~15 MB)
 # =============================================================================
 
 $ErrorActionPreference = 'Stop'
@@ -17,9 +16,9 @@ $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $PSScriptRoot
 $share   = Join-Path $root 'share'
 $staging = Join-Path $share '_staging'
-$version = '1.6.2'
+$version = '2.4.2'
 $stamp   = Get-Date -Format 'yyyyMMdd'
-$zipPath = Join-Path $share "Melody-$version-$stamp.zip"
+$zipPath = Join-Path $share "Melody-Retro-$version-$stamp.zip"
 
 if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
 New-Item -ItemType Directory -Force -Path $staging | Out-Null
@@ -27,7 +26,7 @@ New-Item -ItemType Directory -Force -Path (Join-Path $staging 'apk') | Out-Null
 
 $skipDirs = @('build', '.gradle', '.kotlin', 'dist', 'captures')
 
-foreach ($proj in @('Melody', 'MelodyRetro')) {
+foreach ($proj in @('MelodyRetro')) {
     $src = Join-Path $root $proj
     if (-not (Test-Path $src)) { Write-Host "skip (missing): $proj"; continue }
     Write-Host "staging $proj ..."
@@ -44,9 +43,8 @@ New-Item -ItemType Directory -Force -Path (Join-Path $staging 'tools') | Out-Nul
 Copy-Item (Join-Path $PSScriptRoot 'setup-buildtools.ps1') (Join-Path $staging 'tools')
 Copy-Item (Join-Path $PSScriptRoot 'pack-share.ps1')        (Join-Path $staging 'tools')
 
-# prebuilt APKs so the other machine can install without building anything
+# prebuilt APK so the other machine can install without building anything
 $apks = @(
-    @{ Src = 'Melody\dist\Melody-1.6.2-release.apk';            Name = 'Melody-1.6.2-release.apk' },
     @{ Src = 'MelodyRetro\dist\Melody-Retro-2.4.2-release.apk'; Name = 'Melody-Retro-2.4.2-release.apk' }
 )
 foreach ($a in $apks) {
@@ -60,8 +58,8 @@ foreach ($a in $apks) {
 
 # a tiny pointer at the top so a fresh reader finds the hand-off doc first
 $readme = @'
-Melody - hand-off package
-=========================
+Melody Retro - hand-off package
+===============================
 
 Read HANDOFF.md first. It explains:
   - how to bootstrap the build environment (tools/setup-buildtools.ps1)
@@ -71,10 +69,10 @@ Read HANDOFF.md first. It explains:
 
 Quick start:
   powershell -ExecutionPolicy Bypass -File tools\setup-buildtools.ps1
-  cd Melody
+  cd MelodyRetro
   .\gradlew.bat --no-daemon --console=plain assembleDebug
 
-Prebuilt (debug-signed) APKs are in apk/.
+The prebuilt (debug-signed) APK is in apk/.
 '@
 Set-Content -Path (Join-Path $staging 'README.txt') -Value $readme -Encoding ASCII
 

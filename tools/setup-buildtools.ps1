@@ -113,7 +113,7 @@ $yes | & $sdkManager "--sdk_root=$sdk" '--licenses' | Out-Null
 # ------------------------------------------------- 5. write local.properties --
 Write-Host "[5/5] Writing local.properties ..."
 $sdkForProp = $sdk.Replace('\', '/')
-foreach ($proj in @('Melody', 'MelodyRetro')) {
+foreach ($proj in @('MelodyRetro')) {
     $dir = Join-Path $root $proj
     if (-not (Test-Path $dir)) { continue }
     $line = "sdk.dir=$sdkForProp"
@@ -126,7 +126,7 @@ Write-Host ""
 Write-Host "Done. Build with:"
 Write-Host ""
 Write-Host "  `$env:JAVA_HOME='$javaHome'"
-Write-Host "  cd $root\Melody"
+Write-Host "  cd $root\MelodyRetro"
 Write-Host "  .\gradlew.bat --no-daemon --console=plain assembleDebug"
 Write-Host ""
 Write-Host "The Gradle wrapper downloads Gradle 8.9 on first run (~130 MB)."
