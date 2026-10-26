@@ -9,8 +9,9 @@
 ## 0. 一句话
 
 纯本地 Android 音乐播放器，Kotlin + Jetpack Compose + Media3(ExoPlayer)。
-视觉层按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做
-——**主题色来自当前歌曲封面**，不是壁纸。
+视觉层按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer)（GPL-3.0）的设计语言重做
+——**主题色来自当前歌曲封面**，不是壁纸。只参照其设计规范，用 Compose 重新实现，
+**没有复制它的 Java / View / XML 代码**（原项目 `compileSdk 36` + KSP/Realm，架构完全不同）。
 无后端、无账号，唯一的外网请求是**在线歌词**和**在线封面**两个功能。
 
 | 项 | 值 |

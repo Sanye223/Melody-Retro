@@ -68,6 +68,11 @@ rememberRetroColors(albumId) ->
   **只有一行标题**（`miniPlayerTitle`，marquee）、右侧 `previous/playPause/next`。
 - 播放页右键顺序与时间标签位置即照此实现。
 
+**许可证**：RetroMusicPlayer 以 **GPL-3.0** 发布。本项目只是照着它的**设计规范**用
+Kotlin + Jetpack Compose 重新实现（原项目是 `compileSdk 36` + KSP/Realm 的传统 View + XML 架构，
+代码无法直接复用），仓库里不含它的 Java / View / XML 代码，所以代码层面不是 GPL-3.0 衍生作品。
+若要把原项目代码引入本仓库再分发，那部分需遵循 GPL-3.0。
+
 ### 0.4 已知边界
 
 - 只移植了 **视觉与交互风格**，没有搬 RetroMusicPlayer 的代码与功能（播放列表管理、均衡器、

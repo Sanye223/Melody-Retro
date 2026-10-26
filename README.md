@@ -4,8 +4,9 @@
 
 **封面是什么颜色，界面就是什么颜色。**
 
-一个完全离线的 Android 本地音乐播放器。视觉照 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer)
-的设计语言重做，主题色由当前歌曲封面实时提取 —— 换一首歌，整个界面跟着变。
+一个完全离线的 Android 本地音乐播放器，基于
+[RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做，
+主题色由当前歌曲封面实时提取 —— 换一首歌，整个界面跟着变。
 
 ![Android](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
@@ -28,6 +29,7 @@
 - [技术栈](#技术栈)
 - [权限](#权限)
 - [已知限制](#已知限制)
+- [来源与致谢](#来源与致谢)
 - [文档](#文档)
 
 ---
@@ -180,6 +182,26 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
   接口细节与踩过的坑记录在 [`HANDOFF.md`](HANDOFF.md) 第 3、4 节。
 - 音乐文件本身没有内嵌封面、文件名也不含歌名和艺术家时，猜不准就只能显示占位图。
 - 只在个人真机上验证过，没有做多机型 / 多分辨率测试。
+
+## 来源与致谢
+
+本项目的**视觉语言与交互规范来自 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer)**。
+下面这些都是照它的实现对齐的：
+
+| 照它实现的 | 出处（原项目文件） |
+| --- | --- |
+| 播放控制区顺序 `repeat → previous → playPause → next → shuffle`，播放键为圆形 FAB | `fragment_adaptive_player_playback_controls.xml` |
+| 进度条两侧各放一个时间标签，时间与滑杆同一行 | 同上 |
+| 迷你播放器 56dp 高、40dp 封面、只显示一行歌名 | `fragment_mini_player.xml` |
+| 歌曲信息 `FLAC • 24-bit • 1411 kb/s • 48 kHz` 单行居中小字 | `getSongInfo()` |
+| 专辑 / 艺术家紧凑网格（10dp 圆角、10dp 间距） | 各 item 布局 |
+
+**关于许可证**：RetroMusicPlayer 以 **GPL-3.0** 发布。本项目是用 Kotlin + Jetpack Compose
+重新实现的 —— 原项目是 `compileSdk 36` + KSP/Realm 的传统 View + XML 架构，代码无法直接复用，
+本仓库**没有包含它的 Java / View / XML 代码**，因此在代码层面不构成 GPL-3.0 衍生作品。
+如果你打算把原项目的代码引入本仓库再分发，那部分需要遵循 GPL-3.0。
+
+感谢 RetroMusicPlayer 的作者与所有贡献者 —— 这套设计语言值得被单独做一次实现。
 
 ## 文档
 
