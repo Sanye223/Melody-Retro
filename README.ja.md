@@ -13,7 +13,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.6.0--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.6.1--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-113%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -75,7 +75,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 | | |
 | --- | --- |
 | **スキャン** | `MediaStore` で全音声ファイルを走査（MP3 / FLAC / M4A / OGG / WAV / AIFF）。着メロなどの短い音源は除外。タイトル / 追加日時 / アーティストでソート |
-| **ブラウズ** | 曲一覧。大きなタイトルは置かず、アイコン行と折りたたみ検索バーだけ。上にスクロールすると検索バーが**スクロール量に連動して**縮みながらツールバーへ吸い込まれる（MD3 の docked search bar）。幅と位置は補間のみでリストは再レイアウトされない。インクリメンタル検索、再生中ハイライト、アルバムのアダプティブグリッド、アーティストの円形リスト付き |
+| **ブラウズ** | 固定トップバー（スクロールするとタイトルが縮むだけで、消えはしない）＋右上に検索ボタン。押すとタイトル下に MD3 の塗りつぶし検索バーが開く。インクリメンタル検索、再生中ハイライト、アルバムのアダプティブグリッド、アーティストの円形リスト付き |
 | **再生** | 再生 / 一時停止 / 前へ / 次へ / シーク / シャッフル / 1 曲リピート / 全曲リピート |
 | **バックグラウンド** | `MediaSessionService` + ExoPlayer。通知とロック画面の操作、オーディオフォーカス、イヤホンを抜くと自動停止、画面 OFF でも再生継続 |
 | **歌詞** | 同名 `.lrc` → ファイル内のタグ → QQ Music → LRCLIB の順。行ごとのバネ追従、タップでシーク、結果はディスクにキャッシュ |
@@ -155,7 +155,7 @@ cd MelodyRetro
 実機へ（初回起動時に音声の権限を許可してください）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.6.0-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.6.1-release.apk
 ```
 
 > 注意：release ビルドは**わざと debug キーストアで署名**しています。すぐ入れて触れるようにするためです。
@@ -280,6 +280,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 18 · 2.6.0-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 19 · 2.6.1-retro</sub>
 
 </div>

@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.6.0--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.6.1--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-113%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -60,7 +60,7 @@ exist or don't scroll. Three things here are deliberately different:
 | | |
 | --- | --- |
 | **Scan** | `MediaStore` sweep over every audio file (MP3 / FLAC / M4A / OGG / WAV / AIFF), short clips like ringtones filtered out. Sort by title / date added / artist |
-| **Browse** | Song list with no big title — just an icon row and a collapsing search bar that shrinks into the toolbar as you scroll (MD3 docked search bar), driven continuously by scroll offset so nothing re-lays out mid-scroll. Live search, now-playing highlight, adaptive album grid, circular artist list, detail screens for both |
+| **Browse** | Song list with a sticky top bar (scrolling only shrinks the title, it never slides away) and a search button pinned top-right that opens an MD3 filled search bar underneath. Live search, now-playing highlight, adaptive album grid, circular artist list, detail screens for both |
 | **Playback** | Play / pause / prev / next / seek / shuffle / repeat-one / repeat-all |
 | **Background** | `MediaSessionService` + ExoPlayer: notification and lock-screen controls, audio focus, pause on headphone unplug, keeps playing screen-off |
 | **Lyrics** | Sidecar `.lrc` → tags embedded in the file → QQ Music → LRCLIB. Per-row wave scroll, tap-to-seek, results cached to disk |
@@ -140,7 +140,7 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.6.0-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.6.1-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
@@ -259,6 +259,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 18 · 2.6.0-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 19 · 2.6.1-retro</sub>
 
 </div>

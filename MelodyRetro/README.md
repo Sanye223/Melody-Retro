@@ -4,7 +4,7 @@
 **视觉层完全按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做**：
 配色由当前歌曲封面决定、整屏竖向渐变、通栏迷你播放器、紧凑网格。
 
-- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.6.0-retro**，目录 `MelodyRetro/`
+- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.6.1-retro**，目录 `MelodyRetro/`
 - 最低支持 **Android 7.0（API 24）**，目标 **Android 15（API 35）**
 - 这是项目当前**唯一**的版本。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`）
   已于 2026-10-27 彻底移除（代码、git 历史、本机备份、手机安装包全部清除），
@@ -86,7 +86,7 @@ Kotlin + Jetpack Compose 重新实现（原项目是 `compileSdk 36` + KSP/Realm
 | 分类 | 说明 |
 | --- | --- |
 | 本地扫描 | 通过 `MediaStore` 扫描设备中所有音频（MP3 / FLAC / M4A / OGG / WAV …），自动过滤铃声等短音频，支持按标题 / 添加时间 / 艺术家排序 |
-| 歌曲列表 | 无大标题，顶部只有图标行 + 折叠搜索栏：向上滑动时搜索栏**跟着滚动连续收缩**、平移并缩成右上角的圆形按钮（MD3 docked search bar 形态），位置与宽度全程插值、不重排列表；实时搜索（歌名 / 艺术家 / 专辑）、当前播放高亮与波形图标 |
+| 歌曲列表 | 顶栏常驻（滚动只把它压成小标题，不会滑走）；搜索按钮固定在右上角，点开在标题下方展开 MD3 填充式搜索栏，再点收起并清空。实时搜索（歌名 / 艺术家 / 专辑）、当前播放高亮与波形图标 |
 | 专辑 | 自适应网格（`LazyVerticalGrid` + `GridCells.Adaptive`），点击进入专辑详情 |
 | 艺术家 | 圆形封面列表，点击进入艺术家详情 |
 | 播放控制 | 播放 / 暂停 / 上一曲 / 下一曲 / 进度条拖动 / 随机播放 / 单曲循环 / 列表循环 |
