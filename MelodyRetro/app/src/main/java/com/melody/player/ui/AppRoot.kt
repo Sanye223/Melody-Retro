@@ -87,6 +87,7 @@ import com.melody.player.playback.PlayerUiState
 import com.melody.player.ui.components.PlayerSheetState
 import com.melody.player.ui.components.miniAlphaAt
 import com.melody.player.ui.components.playerAlphaAt
+import androidx.compose.ui.platform.LocalDensity
 
 private object Routes {
     const val SONGS = "songs"
@@ -194,7 +195,25 @@ fun AppRoot(settings: AppSettings) {
 
             // 抽屉还没挂载时也要知道屏幕高度，第一次上滑才能立刻跟手
             val fullHeightPx = constraints.maxHeight.toFloat()
-            SideEffect { sheetState.heightPx = fullHeightPx }
+
+            // 收起时面板顶边要落到底部栏顶边。这里先用同一套常量算出来，
+            // 等底栏真正布局完再由 BottomBarPlaceholder 用实测值校正；
+            // 不然测量前 travel 会退化成整屏高，面板连同迷你播放器一起被推出屏幕。
+            val density = LocalDensity.current
+            val estimatedBarPx = with(density) {
+                val mini = if (playerState.current != null) MiniPlayerHeight else 0.dp
+                val nav = if (wide) 0.dp else NavigationBarHeight
+                (mini + nav).roundToPx() + WindowInsets.navigationBars.getBottom(density)
+            }
+            SideEffect {
+                sheetState.heightPx = fullHeightPx
+                // 只兜底初值，之后由底栏实测值校正（实测会随有无歌曲变化）
+                if (!showBars) {
+                    sheetState.bottomBarHeightPx = 0f
+                } else if (sheetState.bottomBarHeightPx <= 0f) {
+                    sheetState.bottomBarHeightPx = estimatedBarPx.toFloat()
+                }
+            }
 
             Row(modifier = Modifier.fillMaxSize()) {
                 if (wide && showBars) {
@@ -417,8 +436,7 @@ private fun BottomBarPlaceholder(
 ) {
     Column(
         modifier = Modifier.onGloballyPositioned { coordinates ->
-            val measured = coordinates.size.height.toFloat()
-            if (measured > 0f) onMeasured(measured)
+            onMeasured(coordinates.size.height.toFloat())
         },
     ) {
         if (hasMiniPlayer) Spacer(modifier = Modifier.height(MiniPlayerHeight))

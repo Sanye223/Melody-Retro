@@ -80,6 +80,9 @@ internal fun sheetSettleTarget(
 /** 面板下滑过程中顶部露出的圆角，展开后收敛到 0，重新变成整屏。 */
 private val SheetCornerRadius = 22.dp
 
+/** 底栏高度尚未测量时的兜底比例（迷你播放器 + 导航栏大致占屏高这么多）。 */
+private const val SHEET_BAR_FALLBACK_RATIO = 0.12f
+
 /** 面板浮在列表上方时的投影高度。 */
 private val SheetShadow = 22.dp
 
@@ -115,15 +118,32 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
     var progress by mutableFloatStateOf(if (initiallyOpen) 0f else 1f)
         private set
 
-    /** 屏幕高度（px），手势换算比例要用。 */
-    internal var heightPx: Float = 0f
+    /**
+     * 屏幕高度（px）。必须是 State：面板的 translationY 在 `graphicsLayer` 里读它，
+     * 普通字段改了不会触发重绘，面板会一直停在测量前的错位置。
+     */
+    internal var heightPx by mutableFloatStateOf(0f)
 
-    /** 底部栏高度（迷你播放器 + 导航栏）。收起时面板就退到这么高。 */
-    internal var bottomBarHeightPx: Float = 0f
+    /** 底部栏高度（迷你播放器 + 导航栏）。收起时面板就退到这么高。同样是 State。 */
+    internal var bottomBarHeightPx by mutableFloatStateOf(0f)
 
-    /** 手势要走完的距离：从贴住屏幕顶，到退成「只剩底部栏」。 */
+    /**
+     * 手势要走完的距离：从贴住屏幕顶，到退成「只剩底部栏」。
+     *
+     * 底栏高度还没量到时**不能**退化成整屏高 —— 那样 `translationY` 会把整块面板
+     * （连同面板顶部的迷你播放器）推到屏幕外面，用户只看到歌单、找不到迷你播放器。
+     * 这里按屏高的固定比例兜底，等实测值回来再收敛。
+     */
     internal val travelPx: Float
-        get() = (heightPx - bottomBarHeightPx).coerceAtLeast(1f)
+        get() {
+            if (heightPx <= 0f) return 1f
+            val bar = if (bottomBarHeightPx > 0f) {
+                bottomBarHeightPx
+            } else {
+                heightPx * SHEET_BAR_FALLBACK_RATIO
+            }
+            return (heightPx - bar.coerceAtMost(heightPx * 0.5f)).coerceAtLeast(1f)
+        }
 
     /** 面板是否处于（部分）展开状态 —— 返回键要用。 */
     val isOpen: Boolean get() = progress < 0.999f

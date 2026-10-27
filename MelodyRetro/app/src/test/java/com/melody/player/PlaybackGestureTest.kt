@@ -1,6 +1,7 @@
 package com.melody.player
 
 import com.melody.player.ui.components.SHEET_DISMISS_THRESHOLD
+import com.melody.player.ui.components.PlayerSheetState
 import com.melody.player.ui.components.SHEET_CROSSFADE_CENTER
 import com.melody.player.ui.components.miniAlphaAt
 import com.melody.player.ui.components.playerAlphaAt
@@ -173,6 +174,25 @@ class PlaybackGestureTest {
         assertEquals(0f, miniAlphaAt(0.7f), 0.0001f)
         assertEquals(0f, playerAlphaAt(0.9f), 0.0001f)
         assertEquals(1f, miniAlphaAt(0.9f), 0.0001f)
+    }
+
+    @Test
+    fun `底栏高度未知时面板不会整个滑出屏幕`() {
+        // 抽屉收起时面板顶边 = progress × travel。若 travel 退化成整屏高，
+        // 面板（连同面板顶部的迷你播放器）会被推到屏幕外，只剩歌单可见。
+        val state = PlayerSheetState()
+        state.heightPx = 2000f
+        val travel = state.travelPx
+        assertTrue("travel=$travel 不该接近整屏", travel < 2000f * 0.95f)
+        assertTrue("travel=$travel 至少要露出底栏", travel > 2000f * 0.5f)
+    }
+
+    @Test
+    fun `底栏量到之后按实测值收起`() {
+        val state = PlayerSheetState()
+        state.heightPx = 2000f
+        state.bottomBarHeightPx = 220f
+        assertEquals(1780f, state.travelPx, 0.01f)
     }
 
     @Test
