@@ -1,12 +1,14 @@
 package com.melody.player.ui.screens
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -104,12 +106,42 @@ import com.melody.player.ui.theme.RetroColors
 import com.melody.player.ui.theme.rememberRetroColors
 import com.melody.player.util.formatDuration
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 /** 点击歌词行后点亮保持的时长，之后恢复原状。 */
 private const val FLASH_DURATION_MS = 420L
 
-/** 当前歌词行放大到 1.10 倍：够明显，又不至于和相邻行挤在一起。 */
-private const val LYRIC_ACTIVE_SCALE = 1.10f
+// ---------------------------------------------------------------------------
+// 歌词动效参数
+//
+// 参照 RetroMusicPlayer / Apple Music 那一类"焦点行"歌词的做法（Halcyon 的实现里同样
+// 使用这组数值：`ReferenceLyricMotion.kt`）：
+//   - 基准字号不动，**其它行缩小**，靠尺度的相对差把焦点行托起来，而不是把焦点行吹大
+//     （放大焦点行会让行高变化，LazyColumn 需要重新测量，滚动就会一顿一顿）
+//   - 透明度按与焦点行的距离线性递减，远处淡到刚好看得见的程度
+//   - 缓动统一用 CubicBezier(.4, .1, 0, 1)：起步快、收尾极慢，是"顺滑"观感的来源
+//   - 每行按距离错峰 40ms 启动，换行时形成一道自上而下的波浪
+// ---------------------------------------------------------------------------
+
+/** 起步快、收尾慢，Apple Music 歌词位移用的就是这条曲线。 */
+private val LyricEasing = CubicBezierEasing(0.4f, 0.1f, 0f, 1f)
+
+/** 单行缩放/透明度的过渡时长。 */
+private const val LYRIC_MOTION_MS = 450
+
+/** 每远离焦点行一行，动画延后 40ms 启动（最多累计 3 行），形成波浪。 */
+private const val LYRIC_STAGGER_MS = 40
+
+/** 相邻行相对焦点行的缩小比例；再乘以距离，最多缩到 3 行。 */
+private const val LYRIC_SCALE_STEP = 0.017f
+
+/** 非焦点行在焦点行正下方时的透明度，以及每远一行再减多少、最低到多少。 */
+private const val LYRIC_ALPHA_NEAR = 0.30f
+private const val LYRIC_ALPHA_STEP = 0.030f
+private const val LYRIC_ALPHA_MIN = 0.18f
+
+/** 焦点行滚到视口中央所用的时长。 */
+private const val LYRIC_SCROLL_MS = 500
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -348,9 +380,32 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
         }
     }
 
-    LaunchedEffect(activeIndex, lyrics) {
-        if (activeIndex >= 0) {
+    // 用户正在手动翻歌词时不强行拉回去，松手后下一次换行再自然归位
+    val dragging by listState.interactionSource.collectIsDraggedAsState()
+
+    // 焦点行滚到视口正中。
+    //
+    // 不用 animateScrollToItem：它只会把目标行顶到 contentPadding 的位置，时长由跨过的行数
+    // 隐式决定 —— 相邻两行几乎瞬移、跨十行又拖得很长，节奏忽快忽慢。
+    // 这里取目标行当前的实测中心与视口中心的像素差，用同一条缓动曲线滚过去，
+    // 无论换行跨多远，起落手感都一致。
+    LaunchedEffect(activeIndex, lyrics, dragging) {
+        if (activeIndex < 0 || dragging) return@LaunchedEffect
+        val info = listState.layoutInfo
+        val item = info.visibleItemsInfo.firstOrNull { it.index == activeIndex }
+        if (item == null) {
+            // 目标行还没被懒加载出来：先滚过去，下一次换行再按像素校准
             listState.animateScrollToItem(activeIndex)
+            return@LaunchedEffect
+        }
+        val viewportCenter = (info.viewportStartOffset + info.viewportEndOffset) / 2f
+        val itemCenter = item.offset + item.size / 2f
+        val delta = itemCenter - viewportCenter
+        if (abs(delta) > 1f) {
+            listState.animateScrollBy(
+                value = delta,
+                animationSpec = tween(durationMillis = LYRIC_SCROLL_MS, easing = LyricEasing),
+            )
         }
     }
 
@@ -370,24 +425,45 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
                 itemsIndexed(lyrics.lines) { index, line ->
                     val active = index == activeIndex
                     val flashing = index == flashIndex
-                    // 当前行平滑放大：只作用在绘制层（graphicsLayer），不参与测量，
-                    // 所以 LazyColumn 不会重新排版，行距和相邻行都不动。
-                    val scale by animateFloatAsState(
-                        targetValue = if (active) LYRIC_ACTIVE_SCALE else 1f,
+                    // 与焦点行隔了几行；没在播放（静态歌词）时统一按 0，整屏一样亮
+                    val distance = if (activeIndex < 0) 0 else abs(index - activeIndex)
+                    // 越远的行越晚启动动画，换行时自上而下扫过一道波浪
+                    val stagger = distance.coerceAtMost(3) * LYRIC_STAGGER_MS
+
+                    // 只缩不放：基准字号不动，其它行按距离轻微缩小，焦点行因此"显得"更大。
+                    // 关键是不把焦点行放大 —— 放大字号会改变行的测量高度，LazyColumn 要重新
+                    // 布局，滚动就会卡顿、行会跳；这里所有行的尺寸始终一致，只有绘制层在缩放。
+                    val scale = animateFloatAsState(
+                        targetValue = if (active) 1f else 1f - distance.coerceAtMost(3) * LYRIC_SCALE_STEP,
                         animationSpec = tween(
-                            durationMillis = 420,
-                            easing = FastOutSlowInEasing,
+                            durationMillis = LYRIC_MOTION_MS,
+                            delayMillis = stagger,
+                            easing = LyricEasing,
                         ),
                         label = "lyricScale",
                     )
-                    // 当前行只用「主题色 + 半粗」区分，不再有任何边框/底色；
-                    // 其它行降低透明度形成对比。
+                    // 渐隐：越远越淡，淡到 LYRIC_ALPHA_MIN 为止，保证还能看出下一句的轮廓
+                    val lineAlpha = animateFloatAsState(
+                        targetValue = when {
+                            active -> 1f
+                            !lyrics.synced -> 0.85f
+                            else -> (LYRIC_ALPHA_NEAR - distance.coerceAtMost(4) * LYRIC_ALPHA_STEP)
+                                .coerceAtLeast(LYRIC_ALPHA_MIN)
+                        },
+                        animationSpec = tween(
+                            durationMillis = LYRIC_MOTION_MS,
+                            delayMillis = stagger,
+                            easing = LyricEasing,
+                        ),
+                        label = "lyricAlpha",
+                    )
+                    // 颜色只表达"谁是焦点行"，不承载透明度 —— 透明度交给绘制层，
+                    // 否则点击柔光会被行的整体透明度一起压暗。
                     val color by animateColorAsState(
-                        // 高亮色跟随播放控件主色（本版本为封面取色的 accent）
                         targetValue = when {
                             flashing -> MaterialTheme.colorScheme.onSurface
                             active -> accent
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         animationSpec = tween(durationMillis = if (flashing) 80 else 260),
                         label = "lyricColor",
@@ -427,9 +503,13 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .graphicsLayer {
-                                    scaleX = scale
-                                    scaleY = scale
-                                    // 左对齐：以左边缘中点为中心放大，视线不会被往右推
+                                    // 在绘制层读动画值：换行时只失效这一层的缓存，
+                                    // 不会让整行重新组合、重建 TextStyle（那才是掉帧的来源）
+                                    scaleX = scale.value
+                                    scaleY = scale.value
+                                    // 点击点亮的那一瞬间不被渐隐压暗
+                                    alpha = if (flashing) 1f else lineAlpha.value
+                                    // 左对齐：以左边缘中点为中心缩放，视线不会被往右推
                                     transformOrigin = TransformOrigin(0f, 0.5f)
                                 },
                         )

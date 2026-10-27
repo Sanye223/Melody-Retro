@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.2-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.3-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.4.2-retro (versionCode 7) |
+| 版本 | 2.4.3-retro (versionCode 8) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.3-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -223,7 +223,8 @@ README 重写为自洽的单项目文档。
 **待真机确认**（用户还没反馈）：
 
 - [ ] 无标签 MP3 的封面能否补上；列表/播放页显示的歌名是否正确
-- [ ] 歌词当前行放大 1.10× 是否顺滑、有没有跳行
+- [ ] 歌词焦点行停在屏幕正中、前后行缩小渐隐是否顺滑、有没有跳行（v2.4.3 改为
+      「焦点行不动、其它行缩小」的 Apple Music 式做法，滚动手感需要真机确认）
 - [ ] 歌曲信息一行（`FLAC • 24-bit • 1411 kb/s • 48 kHz`）在歌手名下方是否成图
 - [ ] 封面取色驱动的渐变/按钮/迷你播放器颜色是否跟着换歌一起变
 
@@ -251,7 +252,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.4.2-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.4.3-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

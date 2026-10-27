@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.2--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.3--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -46,8 +46,8 @@ exist or don't scroll. Three things here are deliberately different:
    tags, without embedded art, without lyrics. The app goes out and finds them, scores the matches,
    caches the winners, and never asks again.
 3. **The UI stays out of the way.** Lyrics are left-aligned. Tap one and it flashes for 0.4s, then
-   fades. The active line scales to 1.10× — `graphicsLayer` only, so it never re-measures and never
-   makes the list jump.
+   fades. The active line parks itself mid-screen while its neighbours shrink and dim by distance —
+   `graphicsLayer` only, so nothing re-measures and the list never jumps.
 
 ## Features
 
@@ -80,7 +80,7 @@ flowchart LR
     H -->|hit| G
     H -->|miss| E
     G --> I["Cache to cacheDir/lyrics/"]
-    I --> J[Auto-scroll + active line scales]
+    I --> J["Auto-scroll + focus line centered, others shrink and dim"]
 ```
 
 **Cover art.** First hit wins. No "let me double-check with another source" — that's how you get
@@ -127,7 +127,7 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.3-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
@@ -231,6 +231,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 7 · 2.4.2-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 8 · 2.4.3-retro</sub>
 
 </div>

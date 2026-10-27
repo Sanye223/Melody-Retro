@@ -12,7 +12,7 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.2--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.3--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -48,8 +48,8 @@
    进度条、迷你播放器和歌词高亮 —— 全部同色，换歌即换色。
 2. **不用手动准备歌词和封面。** 手机里那些从各处下载来的 MP3，一半没有 ID3 标签、没有封面、
    没有歌词。播放器自己去 QQ 音乐、iTunes、LRCLIB 找，找到就缓存，下次不再联网。
-3. **界面别抢戏。** 歌词左对齐、点击瞬亮 0.4 秒后淡出、当前行平滑放大 10%（只改绘制矩阵，
-   不参与布局，绝不跳行）。没有花哨的色块和边框。
+3. **界面别抢戏。** 歌词左对齐、点击瞬亮 0.4 秒后淡出、焦点行停在屏幕正中，
+   其余行按距离缩小渐隐（只改绘制矩阵，不参与布局，滚动不跳行）。没有花哨的色块和边框。
 
 ## 功能
 
@@ -81,7 +81,7 @@ flowchart LR
     H -->|命中| G
     H -->|没搜到| E
     G --> I[写 cacheDir/lyrics/ 缓存]
-    I --> J[逐行滚动 + 当前行放大]
+    I --> J[逐行滚动 + 焦点行居中 + 其余缩小渐隐]
 ```
 
 **封面**：任何一步命中就停，绝不为了"更好看"重复联网。
@@ -127,7 +127,7 @@ cd MelodyRetro
 装到手机（首次启动需要授予「音乐和音频」权限）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.3-release.apk
 ```
 
 > Release 包用的是 **debug 签名**，目的是能直接装上体验。要正式分发请换成你自己的 keystore。
@@ -237,6 +237,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 7 · 2.4.2-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 8 · 2.4.3-retro</sub>
 
 </div>

@@ -13,7 +13,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.2--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.3--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -61,8 +61,8 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
    ジャケットも歌詞も入っていないことがざらです。こちらから探しに行き、スコアリングして、
    当たりをキャッシュします。二度目以降は通信しません。
 3. **UI は主張しない。** 歌詞は左揃え。タップすると 0.4 秒光ってフェードします。
-   現在行は 1.10 倍に拡大しますが、`graphicsLayer` だけなのでレイアウトは再計算されず、
-   リストが飛ぶこともありません。
+   現在行は画面中央に留まり、前後の行は距離に応じて縮んで薄くなります。
+   `graphicsLayer` だけを触るので再測定は起きず、リストが飛ぶこともありません。
 
 ## 機能
 
@@ -95,7 +95,7 @@ flowchart LR
     H -->|ヒット| G
     H -->|ミス| E
     G --> I["cacheDir/lyrics/ にキャッシュ"]
-    I --> J[自動スクロール + 現在行を拡大]
+    I --> J["自動スクロール + 現在行を中央に固定<br/>前後の行は縮小・フェード"]
 ```
 
 **ジャケット。** 最初に当たったものが勝ち。「別のソースでも確認しておくか」はやりません。
@@ -142,7 +142,7 @@ cd MelodyRetro
 実機へ（初回起動時に音声の権限を許可してください）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.3-release.apk
 ```
 
 > 注意：release ビルドは**わざと debug キーストアで署名**しています。すぐ入れて触れるようにするためです。
@@ -253,6 +253,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 7 · 2.4.2-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 8 · 2.4.3-retro</sub>
 
 </div>
