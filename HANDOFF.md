@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.5.2-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.6.0-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.5.2-retro (versionCode 17) |
+| 版本 | 2.6.0-retro (versionCode 18) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.5.2-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.6.0-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -192,6 +192,8 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 播放页不能做成导航目的地 | 做 `NavHost` 目的地时，退出动画开始前下层页面已被拆掉，下滑收起会露出空白。必须做成盖在主界面上的抽屉（`PlayerSheetOverlay`），手势位移与收起动画共用同一个 `progress`，否则「松手 → 跳回原位 → 再播动画」 |
 | 上下滑用哪套动画 | 对齐 RetroMusicPlayer 的 `BottomSheetBehavior`：**整块面板做 `translationY` 平移**，`offset = progress × (屏幕高 − 底部栏高)`，全程不缩放不变形，1:1 跟手。**迷你播放器必须是面板顶部的一条**，否则收起时它不跟着走（用户一眼就能看出来） |
 | 迷你播放器放哪 | 上游 `sliding_music_panel_layout.xml` 里 MiniPlayer 是面板的子 View、叠在播放页之上。放底栏（Scaffold `bottomBar`）是错的：面板平移时它不动，观感完全不同。底部栏只留一个同高的 `Spacer` 占位 + 测量 |
+| 折叠搜索栏别用状态切换 | 位置/宽度由滚动量**连续插值**（`searchCollapseAt`），不要用「展开/收缩两个 Composable 交叉」或 `animateDpAsState` 切状态 —— 前者没有收缩过程，后者在滚动中动画追不上手指 |
+| 折叠时列表不能重排 | 列表 `contentPadding.top` 只留「收缩后」高度，展开多出来的那段用**首项 `Spacer(CollapseDistance)`** 撑开。滚动时 spacer 自己滚走，头部高度不用变 —— 若改成动画 padding，列表每帧重排、滚动会抖 |
 | `graphicsLayer` 读的状态必须是 State | 面板位置在 `graphicsLayer { translationY = progress × travel }` 里算，而 `travel` 依赖 `heightPx` / `bottomBarHeightPx`。这两个若是普通字段，测量回来也不会触发重绘，面板会一直停在 0 或整屏的错位置 —— 2.5.1 就是这么把迷你播放器推出屏幕的（用户只看到歌单） |
 | 底栏高度未测量前不能当 0 | `travel = 屏高 − 底栏高`，底栏为 0 时 travel 退化成整屏，整块面板连同迷你播放器一起滑出屏幕。要按屏高比例兜底 + 用常量先算初值，别只等 `onGloballyPositioned` |
 | 导航栏 z 序 | 面板收起时会盖住底部栏区域，所以 `NavigationBar` 必须画在**面板之上**（Box 最后声明），并按 `miniAlphaAt` 淡出 + 下移出屏。否则要么被面板挡住，要么展开时挡在播放页上 |
@@ -276,7 +278,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.5.2-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.6.0-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`
