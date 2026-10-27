@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.6.2-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.6.3-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.6.2-retro (versionCode 20) |
+| 版本 | 2.6.3-retro (versionCode 21) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.6.2-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.6.3-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -278,7 +278,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.6.2-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.6.3-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

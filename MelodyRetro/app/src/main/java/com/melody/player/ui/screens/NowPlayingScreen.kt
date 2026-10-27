@@ -245,10 +245,14 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                             }
                         },
                         title = {
-                            Column(horizontalAlignment = Alignment.Start) {
+                            // 顶栏是 CenterAligned 样式，标题块整体居中；块内若还用 Start
+                            // 对齐，短的那行（艺术家）就会贴到最长那行的左边，看起来「没对齐」。
+                            // 两行都居中，中心线才一致。
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
                                     text = current.title,
                                     style = MaterialTheme.typography.titleMedium,
+                                    textAlign = TextAlign.Center,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
@@ -256,6 +260,7 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                                     text = current.artist.ifBlank { current.album },
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                 )
