@@ -4,7 +4,7 @@
 **视觉层完全按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做**：
 配色由当前歌曲封面决定、整屏竖向渐变、通栏迷你播放器、紧凑网格。
 
-- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.3-retro**，目录 `MelodyRetro/`
+- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.2-retro**，目录 `MelodyRetro/`
 - 最低支持 **Android 7.0（API 24）**，目标 **Android 15（API 35）**
 - 这是项目当前**唯一**的版本。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`）
   已于 2026-10-27 彻底移除（代码、git 历史、本机备份、手机安装包全部清除），
@@ -94,7 +94,7 @@ Kotlin + Jetpack Compose 重新实现（原项目是 `compileSdk 36` + KSP/Realm
 | 在线歌词 | 对接 **QQ 音乐**（主源）与 LRCLIB（兜底），按 标题 + 艺术家 + 时长 自动匹配同步歌词，结果本地缓存，可开关与手动重搜 |
 | 在线封面 | 内嵌封面缺失时，按专辑名/艺术家从 **QQ 音乐 → iTunes** 检索并缓存，支持批量补全，可开关 |
 | 歌曲信息 | 歌手名下方一行小字显示 **格式 • 位深 • 码率 • 采样率**（Retro 同款排版，FLAC/WAV/AIFF 读文件头取位深，码率缺失时按体积估算），开关可关 |
-| 歌词设置 | 字号 0.8~1.5×、行间距 2~24dp 可调，带实时预览；高亮色跟随播放控件主色；**焦点行居中、其余行按距离缩小渐隐**（不改布局） |
+| 歌词设置 | 字号 0.8~1.5×、行间距 2~24dp 可调，带实时预览；高亮色跟随播放控件主色；**当前行平滑放大 1.10 倍**（不改布局） |
 | 界面 | **封面取色**（换歌即换色，见第 0 章）、浅色 / 深色 / 跟随系统、手机底部 `NavigationBar`、平板 / 横屏 `NavigationRail` |
 | 后台播放 | `MediaSessionService` + ExoPlayer，通知栏 / 锁屏媒体控制、音频焦点、拔耳机自动暂停 |
 
@@ -437,48 +437,29 @@ FLAC、部分 WAV 的容器头里没有 `KEY_BIT_RATE`（无损是恒定质量 V
   —— 换一张封面，歌词高亮色也跟着换，永远和播放键同色。
 - 点击歌词行的瞬亮柔光也用的是同一个 accent，不会出现"两种高亮色"。
 
-### 6.3 歌词焦点动效
+### 6.3 歌词放大动效
 
-参照 Apple Music / RetroMusicPlayer 那一类"焦点行"歌词的做法（`Halcyon` 的
-`ReferenceLyricMotion.kt` 用的是同一组数值）：**基准字号不动，其它行缩小、变淡**，
-用相对差把焦点行托起来，而不是把焦点行吹大。
+当前播放到的歌词行会在 **420ms** 内平滑放大到 **1.10 倍**，其余行保持原大小；
+切到下一句时，前一句以同样的曲线缩回，新的一句放大。
 
 | 项目 | 实现 |
 | --- | --- |
-| 焦点行 | 缩放 `1.0`、透明度 `1.0`、`accent` 色、`SemiBold` |
-| 相邻行 | 缩放 `0.983`、透明度 `0.30` |
-| 每远一行 | 缩放再乘 0.983（最多 3 行），透明度再减 0.03（最低 `0.18`） |
-| 过渡 | `tween(450ms, easing = CubicBezier(.4f, .1f, 0f, 1f))` —— 起步快、收尾极慢 |
-| 错峰 | 每远一行延后 40ms 启动（`delayMillis`），换行时自上而下扫过一道波浪 |
-| 作用位置 | 只加在 `Text` 的 `graphicsLayer { scaleX/scaleY/alpha }`，不参与测量 |
-| 缩放原点 | `TransformOrigin(0f, 0.5f)`，左边缘中点（歌词左对齐，从左边缩放视线不跑） |
+| 缩放值 | `animateFloatAsState(targetValue = if (active) 1.10f else 1f)` |
+| 曲线 | `tween(420ms, easing = FastOutSlowInEasing)` —— 起步快、收尾慢，没有回弹，不会"弹一下" |
+| 作用位置 | 只加在 `Text` 的 `Modifier.graphicsLayer { scaleX/scaleY }` 上 |
+| 缩放原点 | `TransformOrigin(0f, 0.5f)`，即左边缘中点（歌词左对齐，从左边放大视线不跑） |
 
-**为什么是"缩小的别人"而不是"放大的自己"**
+**为什么不会引起布局跳动**
 
-放大焦点行会让这一行在 `LazyColumn` 里的**测量高度**变化，列表要重新布局 —— 滚动就会一顿一顿，
-行也会跳。反过来，所有行尺寸始终一致、只有绘制层在缩放，布局完全稳定。视觉上焦点行依然最醒目，
-因为周围都缩了、也淡了。
+`graphicsLayer` 只改变**绘制阶段**的矩阵，不参与测量与布局：这一行在 `LazyColumn` 里的高度、
+行距、以及相邻行的位置全都不变。所以：
 
-**滚动：按像素差滚，不按行号跳**
+- 放大/缩小的过程中，列表不会重新排版，也不会闪一下；
+- 自动滚动用的是 `animateScrollToItem(activeIndex)`，它按布局位置居中，与缩放无关，两者不会互相打架；
+- 点击瞬亮（`flashAlpha`）作用在行背景上，与文字缩放互不影响。
 
-```kotlin
-val viewportCenter = (info.viewportStartOffset + info.viewportEndOffset) / 2f
-val itemCenter = item.offset + item.size / 2f
-listState.animateScrollBy(
-    value = itemCenter - viewportCenter,
-    animationSpec = tween(500, easing = LyricEasing),
-)
-```
-
-`animateScrollToItem` 只会把目标行顶到 `contentPadding` 的位置，**时长由跨过的行数隐式决定**
-—— 相邻两行几乎瞬移、跨十行又拖得很长，节奏忽快忽慢。改成先测出目标行当前的中心与视口中心的
-像素差，再用同一条缓动曲线滚过去，无论跨多远起落手感都一致。
-
-另外用 `collectIsDraggedAsState()` 判断用户是否正在手动翻歌词：拖动期间不强行拉回，
-松手后下一次换行再自然归位，不会和手势打架。
-
-点击瞬亮（`flashAlpha`）作用在行背景上，且那一瞬间 `alpha` 直接取 1，不受该行渐隐影响；
-缩放与透明度互不干扰。
+放大后的行与相邻行之间不会粘在一起：歌词行本身有 `LocalLyricSpacing`（默认 9dp）的上下内边距，
+而 24sp 行高放大 10% 只多出约 2.4dp（上下各 1.2dp），仍在间距之内。
 
 ### 6.4 持久化
 
