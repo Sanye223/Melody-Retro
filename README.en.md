@@ -13,7 +13,8 @@ pulled from the cover art of whatever's playing.
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
 ![Version](https://img.shields.io/badge/version-2.6.1--retro-1f6feb)
-![Tests](https://img.shields.io/badge/tests-113%20passed-2ea043)
+[![Download](https://img.shields.io/github/v/release/Sanye223/Melody-Retro?label=download&color=2ea043)](https://github.com/Sanye223/Melody-Retro/releases/latest)
+![Tests](https://img.shields.io/badge/tests-116%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 [简体中文](README.md) | **English** | [日本語](README.ja.md)
