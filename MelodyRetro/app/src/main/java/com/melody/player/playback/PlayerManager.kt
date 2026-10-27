@@ -186,9 +186,10 @@ object PlayerManager {
         val duration = player.duration
         val metaDuration = metadata?.durationMs ?: fallback?.durationMs ?: 0L
 
-        // 播放统计：换曲时先不动账，**播放满 30 秒**才记一次 ——
-        // 不然连续切歌试听会把「最多播放」刷成一堆只有 1 次的噪音。
-        // sync 会被位置 / 状态频繁触发，去重靠 recordedForCurrent。
+        // 播放统计分两层：
+        // - **历史**：换曲即记（touchPlay，只刷新最后播放时间）——用户点开就出现在历史里
+        // - **次数**：播放满 30 秒才 +1（recordPlay）——秒切试听不刷次数
+        // sync 会被位置 / 状态频繁触发，去重靠 recordedForCurrent（次数只记一次）。
         if (current == null) {
             lastRecordedTrackId = 0L
             recordedForCurrent = false
@@ -196,6 +197,11 @@ object PlayerManager {
             if (current.id != lastRecordedTrackId) {
                 lastRecordedTrackId = current.id
                 recordedForCurrent = false
+                if (::appContext.isInitialized) {
+                    val id = current.id
+                    val ctx = appContext
+                    scope.launch { PlayStatsRepository.touchPlay(ctx, id) }
+                }
             }
             if (!recordedForCurrent && player.isPlaying &&
                 player.currentPosition >= PLAY_COUNT_THRESHOLD_MS &&

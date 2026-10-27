@@ -256,8 +256,11 @@ fun TrackListScreen(
                                 onClick = { actions.playQueue(songs, songs.indexOf(track)) },
                                 isFavorite = track.id in favorites,
                                 onToggleFavorite = { onToggleFavorite(track.id) },
-                                // 历史页 / 最多播放页显示次数，其余不显示
-                                playCount = if (type == ListType.HISTORY) stats[track.id]?.count ?: 0 else -1,
+                                // 历史页 / 收藏页 / 最多播放页显示次数，其余不显示
+                                playCount = if (type == ListType.HISTORY ||
+                                    type == ListType.FAVORITES ||
+                                    type == ListType.TOP_TRACKS
+                                ) stats[track.id]?.count ?: 0 else -1,
                             )
                         }
                     }

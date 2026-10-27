@@ -35,6 +35,10 @@ import androidx.compose.ui.unit.dp
 import com.melody.player.playback.PlayerUiState
 import com.melody.player.ui.PlayerActions
 import com.melody.player.ui.theme.rememberRetroColors
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import com.melody.player.ui.LocalFavoriteIds
+import com.melody.player.ui.LocalToggleFavorite
 
 /**
  * 迷你播放器的高度。抽屉收起时面板退到「底部栏顶边」，面板顶部这一条正好是这么高 ——
@@ -103,6 +107,20 @@ fun MiniPlayer(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
+            // 收藏当前歌：与播放页顶栏的心形同一份数据（LocalFavoriteIds）。
+            // IconButton 自身消费点击，不会触发外层 Box 的「展开播放页」。
+            val favIds = LocalFavoriteIds.current
+            val toggleFavorite = LocalToggleFavorite.current
+            val fav = current.id in favIds
+            IconButton(onClick = { toggleFavorite(current.id) }, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    imageVector = if (fav) Icons.Rounded.Favorite
+                    else Icons.Rounded.FavoriteBorder,
+                    contentDescription = if (fav) "取消收藏" else "收藏",
+                    tint = if (fav) colors.accent else secondary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
             IconButton(onClick = actions.previous, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Rounded.SkipPrevious,

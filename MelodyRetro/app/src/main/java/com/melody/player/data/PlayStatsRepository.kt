@@ -39,7 +39,10 @@ object PlayStatsRepository {
         }
         .map { prefs -> parse(prefs[KEY_STATS]) }
 
-    /** 记一次播放：次数 +1，刷新时间戳。 */
+    /**
+     * 记一次「完整播放」：次数 +1，刷新时间戳。
+     * 播放满 [com.melody.player.playback.PLAY_COUNT_THRESHOLD_MS] 才由播放器调用。
+     */
     suspend fun recordPlay(context: Context, trackId: Long) {
         if (trackId <= 0L) return
         context.playStatsDataStore.edit { prefs ->
@@ -47,6 +50,23 @@ object PlayStatsRepository {
             val old = map[trackId]
             map[trackId] = PlayStat(
                 count = (old?.count ?: 0) + 1,
+                lastPlayedAt = System.currentTimeMillis(),
+            )
+            prefs[KEY_STATS] = encode(map)
+        }
+    }
+
+    /**
+     * 只刷新「最后播放时间」，不动次数 —— 用户点开播放就记，历史里立即出现；
+     * 次数仍要等播放满阈值。对应「历史（什么时候听的）」与「次数（听了多少）」的分工。
+     */
+    suspend fun touchPlay(context: Context, trackId: Long) {
+        if (trackId <= 0L) return
+        context.playStatsDataStore.edit { prefs ->
+            val map = parse(prefs[KEY_STATS]).toMutableMap()
+            val old = map[trackId]
+            map[trackId] = PlayStat(
+                count = old?.count ?: 0,
                 lastPlayedAt = System.currentTimeMillis(),
             )
             prefs[KEY_STATS] = encode(map)
