@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
@@ -20,10 +21,10 @@ data class AppSettings(
     val onlineArtwork: Boolean = true,
     /** 是否在播放界面显示格式 / 比特率 / 采样率。 */
     val showTrackInfo: Boolean = true,
-    /** 歌词字号缩放，1.0 为默认（范围 0.8~1.5）。 */
-    val lyricFontScale: Float = 1.0f,
+    /** 歌词字号缩放，1.2 为默认（范围 0.8~1.5），即正文 16sp → 19.2sp。 */
+    val lyricFontScale: Float = SettingsRepository.DEFAULT_LYRIC_FONT_SCALE,
     /** 歌词行上下间距，单位 dp（范围 2~24）。 */
-    val lyricSpacing: Int = 9,
+    val lyricSpacing: Int = SettingsRepository.DEFAULT_LYRIC_SPACING,
 )
 
 private val Context.settingsDataStore by preferencesDataStore(name = "melody_settings")
@@ -35,6 +36,19 @@ object SettingsRepository {
     const val MAX_LYRIC_FONT_SCALE = 1.5f
     const val MIN_LYRIC_SPACING = 2
     const val MAX_LYRIC_SPACING = 24
+
+    /** 默认歌词字号：比正文大 20%（16sp → 19.2sp）。取值落在字号滑块的档位上。 */
+    const val DEFAULT_LYRIC_FONT_SCALE = 1.2f
+
+    /** 默认上下间距：字号变大后间距收窄，整屏能多看两行。 */
+    const val DEFAULT_LYRIC_SPACING = 4
+
+    /** 2.4.4 及更早版本的默认值，仅用于一次性迁移。 */
+    private const val LEGACY_LYRIC_FONT_SCALE = 1.0f
+    private const val LEGACY_LYRIC_SPACING = 9
+
+    /** 设置项版本。改动默认值时必须 +1，老用户才会跟着升级。 */
+    private const val SETTINGS_SCHEMA = 2
 
     const val THEME_SYSTEM = 0
     const val THEME_LIGHT = 1
@@ -49,7 +63,39 @@ object SettingsRepository {
         val SHOW_TRACK_INFO = booleanPreferencesKey("show_track_info")
         val LYRIC_FONT_SCALE = floatPreferencesKey("lyric_font_scale")
         val LYRIC_SPACING = intPreferencesKey("lyric_spacing")
+        val SCHEMA = intPreferencesKey("settings_schema")
     }
+
+    /**
+     * 把仍是「旧默认值」的歌词字号/间距升级到新的默认值，只执行一次。
+     *
+     * 只动等于旧默认（1.0× / 9dp）或从未写过的项 —— 用户自己调过的数值一律保留，
+     * 否则等于替人做决定。
+     */
+    suspend fun migrateLyricDefaultsIfNeeded(context: Context) {
+        val prefs = context.settingsDataStore.data
+            .catch { throwable ->
+                if (throwable is IOException) emit(emptyPreferences()) else throw throwable
+            }
+            .first()
+        if ((prefs[Keys.SCHEMA] ?: 1) >= SETTINGS_SCHEMA) return
+
+        val font = prefs[Keys.LYRIC_FONT_SCALE]
+        val spacing = prefs[Keys.LYRIC_SPACING]
+        context.settingsDataStore.edit { p ->
+            if (isLegacyDefaultFontScale(font)) p[Keys.LYRIC_FONT_SCALE] = DEFAULT_LYRIC_FONT_SCALE
+            if (isLegacyDefaultSpacing(spacing)) p[Keys.LYRIC_SPACING] = DEFAULT_LYRIC_SPACING
+            p[Keys.SCHEMA] = SETTINGS_SCHEMA
+        }
+    }
+
+    /** 该字号是否仍是旧默认（`null` 表示用户从未写过）。 */
+    internal fun isLegacyDefaultFontScale(stored: Float?): Boolean =
+        stored == null || stored == LEGACY_LYRIC_FONT_SCALE
+
+    /** 该间距是否仍是旧默认（`null` 表示用户从未写过）。 */
+    internal fun isLegacyDefaultSpacing(stored: Int?): Boolean =
+        stored == null || stored == LEGACY_LYRIC_SPACING
 
     fun settings(context: Context): Flow<AppSettings> = context.settingsDataStore.data
         .catch { throwable ->
@@ -63,8 +109,8 @@ object SettingsRepository {
                 onlineLyrics = prefs[Keys.ONLINE_LYRICS] ?: true,
                 onlineArtwork = prefs[Keys.ONLINE_ARTWORK] ?: true,
                 showTrackInfo = prefs[Keys.SHOW_TRACK_INFO] ?: true,
-                lyricFontScale = prefs[Keys.LYRIC_FONT_SCALE] ?: 1.0f,
-                lyricSpacing = prefs[Keys.LYRIC_SPACING] ?: 9,
+                lyricFontScale = prefs[Keys.LYRIC_FONT_SCALE] ?: DEFAULT_LYRIC_FONT_SCALE,
+                lyricSpacing = prefs[Keys.LYRIC_SPACING] ?: DEFAULT_LYRIC_SPACING,
             )
         }
 

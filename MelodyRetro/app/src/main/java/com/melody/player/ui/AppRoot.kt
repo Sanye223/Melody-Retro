@@ -106,6 +106,10 @@ fun AppRoot(settings: AppSettings) {
 
     var hasPermission by remember { mutableStateOf(AudioPermission.isGranted(context)) }
 
+    // 歌词字号/间距的新默认值（1.2× / 4dp）只对老数据生效一次；
+    // 用户自己调过的数值保持不变
+    LaunchedEffect(Unit) { SettingsRepository.migrateLyricDefaultsIfNeeded(context) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) {

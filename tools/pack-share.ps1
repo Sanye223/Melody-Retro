@@ -17,7 +17,7 @@ $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $PSScriptRoot
 $share   = Join-Path $root 'share'
 $staging = Join-Path $share '_staging'
-$version = '2.4.4'
+$version = '2.4.5'
 $stamp   = Get-Date -Format 'yyyyMMdd'
 $zipPath = Join-Path $share "Melody-Retro-$version-$stamp.zip"
 
@@ -51,7 +51,7 @@ Copy-Item (Join-Path $PSScriptRoot 'pack-share.ps1')        (Join-Path $staging 
 
 # prebuilt APK so the other machine can install without building anything
 $apks = @(
-    @{ Src = 'MelodyRetro\dist\Melody-Retro-2.4.4-release.apk'; Name = 'Melody-Retro-2.4.4-release.apk' }
+    @{ Src = 'MelodyRetro\dist\Melody-Retro-2.4.5-release.apk'; Name = 'Melody-Retro-2.4.5-release.apk' }
 )
 foreach ($a in $apks) {
     $p = Join-Path $root $a.Src

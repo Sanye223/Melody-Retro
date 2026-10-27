@@ -395,7 +395,7 @@ fun SettingsScreen(
             item {
                 SettingsGroup {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("旋律 Melody", style = MaterialTheme.typography.titleSmall)
+                        Text("Melody Retro", style = MaterialTheme.typography.titleSmall)
                         Text(
                             text = "版本 ${BuildConfig.VERSION_NAME}",
                             style = MaterialTheme.typography.bodySmall,

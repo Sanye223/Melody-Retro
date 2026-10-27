@@ -13,7 +13,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.4--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.5--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -78,7 +78,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 | **ジャケット** | 埋め込み優先。無ければタイトル / アルバム / アーティストで検索し、スコアリングして検証してから保存 |
 | **曲情報** | アーティスト名の下に 1 行：`FLAC • 24-bit • 1411 kb/s • 48 kHz`。ON/OFF 可 |
 | **見た目** | ジャケット由来のパレット、ライト / ダーク / システム追従、スマホは `NavigationBar`、タブレットは `NavigationRail` |
-| **設定** | 歌詞の文字サイズ 0.8〜1.5 倍、行間 2〜24dp（プレビュー付き）、曲情報の ON/OFF、ネットワーク 2 つの ON/OFF。すべて DataStore に永続化 |
+| **設定** | 歌詞の文字サイズ 0.8〜1.5 倍（既定 1.2 倍）、行間 2〜24dp（既定 4dp、プレビュー付き）、曲情報の ON/OFF、ネットワーク 2 つの ON/OFF。すべて DataStore に永続化 |
 
 ## パイプラインの話
 
@@ -144,7 +144,7 @@ cd MelodyRetro
 実機へ（初回起動時に音声の権限を許可してください）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.4-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk
 ```
 
 > 注意：release ビルドは**わざと debug キーストアで署名**しています。すぐ入れて触れるようにするためです。
@@ -269,6 +269,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 9 · 2.4.4-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 10 · 2.4.5-retro</sub>
 
 </div>

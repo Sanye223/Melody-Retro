@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.4--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.5--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -63,7 +63,7 @@ exist or don't scroll. Three things here are deliberately different:
 | **Cover art** | Embedded art first; otherwise queried by title / album / artist, scored, validated, cached |
 | **Track info** | One small line under the artist: `FLAC • 24-bit • 1411 kb/s • 48 kHz`. Toggleable |
 | **Looks** | Artwork-driven palette, light / dark / system, `NavigationBar` on phones and `NavigationRail` on tablets |
-| **Settings** | Lyric font scale 0.8–1.5×, line spacing 2–24dp (live preview), track-info toggle, two network toggles. All persisted via DataStore |
+| **Settings** | Lyric font scale 0.8–1.5× (default 1.2×), line spacing 2–24dp (default 4dp, live preview), track-info toggle, two network toggles. All persisted via DataStore |
 
 ## Under the hood: the two pipelines
 
@@ -129,7 +129,7 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.4-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
@@ -248,6 +248,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 9 · 2.4.4-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 10 · 2.4.5-retro</sub>
 
 </div>

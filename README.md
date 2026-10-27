@@ -12,7 +12,7 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.4--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.5--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -64,7 +64,7 @@
 | 封面 | 内嵌封面优先，缺失时按 歌名 / 专辑 / 艺术家 联网检索，打分筛选、图片校验、负缓存 |
 | 歌曲信息 | 歌手名下方一行小字：`FLAC • 24-bit • 1411 kb/s • 48 kHz`，可开关 |
 | 外观 | 封面取色、浅色 / 深色 / 跟随系统、手机 `NavigationBar` / 平板 `NavigationRail` 自适应 |
-| 设置 | 歌词字号 0.8~1.5×、行距 2~24dp（带实时预览）、歌曲信息开关、两个联网开关，全部 DataStore 持久化 |
+| 设置 | 歌词字号 0.8~1.5×（默认 1.2×）、行距 2~24dp（默认 4dp，带实时预览）、歌曲信息开关、两个联网开关，全部 DataStore 持久化 |
 
 ## 两个核心链路
 
@@ -128,7 +128,7 @@ cd MelodyRetro
 装到手机（首次启动需要授予「音乐和音频」权限）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.4-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk
 ```
 
 > Release 包用的是 **debug 签名**，目的是能直接装上体验。要正式分发请换成你自己的 keystore。
@@ -254,6 +254,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 9 · 2.4.4-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 10 · 2.4.5-retro</sub>
 
 </div>

@@ -4,7 +4,7 @@
 **视觉层完全按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做**：
 配色由当前歌曲封面决定、整屏竖向渐变、通栏迷你播放器、紧凑网格。
 
-- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.4-retro**，目录 `MelodyRetro/`
+- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.5-retro**，目录 `MelodyRetro/`
 - 最低支持 **Android 7.0（API 24）**，目标 **Android 15（API 35）**
 - 这是项目当前**唯一**的版本。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`）
   已于 2026-10-27 彻底移除（代码、git 历史、本机备份、手机安装包全部清除），
@@ -429,8 +429,11 @@ FLAC、部分 WAV 的容器头里没有 `KEY_BIT_RATE`（无损是恒定质量 V
 
 | 参数 | 范围 | 默认 | 效果 |
 | --- | --- | --- | --- |
-| 歌词字号 | 0.8× ~ 1.5×，7 档 | 1.0× | 同时缩放 `fontSize` 与 `lineHeight`，行高不会挤在一起 |
-| 上下间距 | 2 ~ 24 dp，11 档 | 9 dp | 歌词行垂直内边距，改大更透气 |
+| 歌词字号 | 0.8× ~ 1.5×，7 档 | **1.2×** | 同时缩放 `fontSize` 与 `lineHeight`，行高不会挤在一起 |
+| 上下间距 | 2 ~ 24 dp，11 档 | **4 dp** | 歌词行垂直内边距；字号调大后默认收窄，整屏能多看两行 |
+
+> 旧版本默认是 1.0× / 9dp。老用户升级时会做一次性迁移（`SETTINGS_SCHEMA = 2`）：
+> 只有仍停在旧默认或从未写过的项会被改，自己调过的数值一律保留。
 
 - 两个滑块下方有**实时预览**：两句歌词，当前行按真实样式（字号、间距、主色、半粗）渲染，
   调参数时不用来回切页面。
