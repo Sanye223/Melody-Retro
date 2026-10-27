@@ -568,14 +568,18 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
 
 @Composable
 private fun LyricsSourceBadge(result: LyricsResult) {
+    val lyrics = result.lyrics
     val label = when (result.source) {
         LyricsSource.ONLINE -> buildString {
             append(result.provider ?: "在线歌词")
             result.matched?.takeIf { it.isNotBlank() }?.let { append(" · ").append(it) }
         }
         LyricsSource.LOCAL_FILE -> "本地歌词文件"
+        LyricsSource.EMBEDDED -> "内嵌歌词"
         LyricsSource.NONE -> return
     }
+    // 纯文本歌词没有时间轴，不会跟着播放滚动 —— 这里直接说明，免得以为是坏了
+    val hint = if (lyrics != null && !lyrics.synced) " · 无时间轴" else ""
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -591,7 +595,7 @@ private fun LyricsSourceBadge(result: LyricsResult) {
             },
         ) {
             Text(
-                text = label,
+                text = label + hint,
                 style = MaterialTheme.typography.labelSmall,
                 color = if (result.source == LyricsSource.ONLINE) {
                     MaterialTheme.colorScheme.onSecondaryContainer

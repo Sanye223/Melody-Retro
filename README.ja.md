@@ -13,7 +13,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.5--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.6--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -74,7 +74,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 | **ブラウズ** | 曲一覧（インクリメンタル検索、再生中ハイライト）、アルバムのアダプティブグリッド、アーティストの円形リスト、それぞれ詳細画面あり |
 | **再生** | 再生 / 一時停止 / 前へ / 次へ / シーク / シャッフル / 1 曲リピート / 全曲リピート |
 | **バックグラウンド** | `MediaSessionService` + ExoPlayer。通知とロック画面の操作、オーディオフォーカス、イヤホンを抜くと自動停止、画面 OFF でも再生継続 |
-| **歌詞** | 同名 `.lrc` → QQ Music → LRCLIB の順。自動スクロール、タップでシーク、結果はディスクにキャッシュ |
+| **歌詞** | 同名 `.lrc` → ファイル内のタグ → QQ Music → LRCLIB の順。行ごとのバネ追従、タップでシーク、結果はディスクにキャッシュ |
 | **ジャケット** | 埋め込み優先。無ければタイトル / アルバム / アーティストで検索し、スコアリングして検証してから保存 |
 | **曲情報** | アーティスト名の下に 1 行：`FLAC • 24-bit • 1411 kb/s • 48 kHz`。ON/OFF 可 |
 | **見た目** | ジャケット由来のパレット、ライト / ダーク / システム追従、スマホは `NavigationBar`、タブレットは `NavigationRail` |
@@ -82,16 +82,19 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 
 ## パイプラインの話
 
-**歌詞。** ローカル優先。オンラインはベストエフォートで、全滅したらプレースホルダに落ちます。
-エラーダイアログは出しません。
+**歌詞。** 同名 `.lrc` が最優先、次にファイル自身が持っているタグ、それでも無ければネットワーク。
+オンラインはベストエフォートで、全滅したらプレースホルダに落ちます。エラーダイアログは出しません。
+タグに入っている歌詞はたいていタイムスタンプ付きなので、**通信ゼロでスクロールする曲**も多いです。
 
 ```mermaid
 flowchart LR
     A[再生開始] --> B{"同名の .lrc はある?"}
     B -->|ある| C["ローカル歌詞<br/>出典: ローカルファイル"]
-    B -->|ない| D{オンライン歌詞の設定}
+    B -->|ない| K{"タグに歌詞がある?"}
+    K -->|ある・時刻付き| L["埋め込み歌詞<br/>出典: 埋め込み<br/>オフライン・通信なし"]
+    K -->|ない / 時刻なし| D{オンライン歌詞の設定}
     D -->|OFF| E["歌詞なし<br/>設定から有効化を促す"]
-    D -->|ON| F[QQ Music で検索]
+    D -->|ON| F["QQ Music で検索<br/>候補を順に試す"]
     F -->|ヒット| G[歌詞取得 + LRC パース]
     F -->|ミス| H[LRCLIB にフォールバック]
     H -->|ヒット| G
@@ -99,6 +102,10 @@ flowchart LR
     G --> I["cacheDir/lyrics/ にキャッシュ"]
     I --> J[行ごとのバネ追従 + フォーカス階層]
 ```
+
+> 時刻の無いプレーンテキストでも表示はしますが、スクロールしません（出典ラベルに「時刻なし」と出ます）。
+> QQ Music の段では候補を順に試し、時刻付きの歌詞が返ってきた時点で確定します。
+> 検索の先頭はカバーや別アップロードが占めていて、時刻が入っていないことがよくあるためです。
 
 **ジャケット。** 最初に当たったものが勝ち。「別のソースでも確認しておくか」はやりません。
 レートリミットを食らうだけなので。
@@ -144,7 +151,7 @@ cd MelodyRetro
 実機へ（初回起動時に音声の権限を許可してください）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.6-release.apk
 ```
 
 > 注意：release ビルドは**わざと debug キーストアで署名**しています。すぐ入れて触れるようにするためです。
@@ -269,6 +276,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 10 · 2.4.5-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 11 · 2.4.6-retro</sub>
 
 </div>

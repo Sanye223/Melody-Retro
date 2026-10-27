@@ -135,8 +135,21 @@ object QqMusicClient {
         title: String,
         artist: String,
         durationSec: Int,
-    ): QqSong? {
-        if (songs.isEmpty()) return null
+    ): QqSong? = pickCandidates(songs, title, artist, durationSec).firstOrNull()
+
+    /**
+     * 按优先级排好全部候选：严格匹配（曲名+歌手）在前，其余在后，同类按时长接近度排序。
+     *
+     * 之所以要整份列表：搜索结果里常有同名的翻唱/山寨条目，严格匹配反而可能命中它，
+     * 而它的歌词往往没有时间轴。上层会逐个取词，挑到第一个带时间轴的就停。
+     */
+    internal fun pickCandidates(
+        songs: List<QqSong>,
+        title: String,
+        artist: String,
+        durationSec: Int,
+    ): List<QqSong> {
+        if (songs.isEmpty()) return emptyList()
         val normTitle = normalize(title)
         val normArtist = normalize(artist)
 
@@ -149,11 +162,13 @@ object QqMusicClient {
                         normArtist.contains(normalize(song.singers.substringBefore('/')))
                     )
         }
-        val pool = strict.ifEmpty { songs }
+        val loose = songs.filterNot { it in strict }
 
-        return pool.sortedBy { song ->
-            if (durationSec > 0) abs(song.intervalSec - durationSec) else 0
-        }.firstOrNull()
+        fun byDuration(pool: List<QqSong>): List<QqSong> =
+            if (durationSec > 0) pool.sortedBy { abs(it.intervalSec - durationSec) } else pool
+
+        // 去掉 mid 重复（同一首歌可能在两个池子里都出现）
+        return (byDuration(strict) + byDuration(loose)).distinctBy { it.mid }
     }
 
     // ------------------------------------------------------------------ 工具

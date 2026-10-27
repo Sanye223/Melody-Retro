@@ -12,7 +12,7 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.5--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.6--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -60,7 +60,7 @@
 | 浏览 | 歌曲列表（实时搜索、当前播放高亮）、专辑自适应网格、艺术家圆形列表，各自带详情页 |
 | 播放 | 播放 / 暂停 / 上一曲 / 下一曲 / 进度拖动 / 随机 / 单曲循环 / 列表循环 |
 | 后台 | `MediaSessionService` + ExoPlayer，通知栏与锁屏控制、音频焦点、拔耳机自动暂停、息屏继续放 |
-| 歌词 | 本地 `.lrc` → QQ 音乐 → LRCLIB 三级加载，逐行滚动、点击跳转、结果落盘缓存 |
+| 歌词 | 同名 `.lrc` → 音频内嵌标签 → QQ 音乐 → LRCLIB 四级加载，逐行波浪滚动、点击跳转、结果落盘缓存 |
 | 封面 | 内嵌封面优先，缺失时按 歌名 / 专辑 / 艺术家 联网检索，打分筛选、图片校验、负缓存 |
 | 歌曲信息 | 歌手名下方一行小字：`FLAC • 24-bit • 1411 kb/s • 48 kHz`，可开关 |
 | 外观 | 封面取色、浅色 / 深色 / 跟随系统、手机 `NavigationBar` / 平板 `NavigationRail` 自适应 |
@@ -68,15 +68,18 @@
 
 ## 两个核心链路
 
-**歌词**：本地有就用本地的，没有才联网，两条路都失败才显示"暂无歌词"。
+**歌词**：同名 `.lrc` 优先，其次读音频自带的歌词标签，都没有才联网；全失败才显示"暂无歌词"。
+标签里的歌词通常带时间轴，所以很多歌**完全不用联网就能滚动**。
 
 ```mermaid
 flowchart LR
     A[开始播放] --> B{同名 .lrc?}
     B -->|有| C[本地歌词<br/>显示来源「本地歌词文件」]
-    B -->|没有| D{在线歌词开关}
+    B -->|没有| K{"音频内嵌歌词?"}
+    K -->|有且带时间轴| L[内嵌歌词<br/>来源「内嵌歌词」<br/>离线、不联网]
+    K -->|没有或只有纯文本| D{在线歌词开关}
     D -->|关闭| E[暂无歌词<br/>提示到设置里开启]
-    D -->|开启| F[QQ 音乐搜索]
+    D -->|开启| F[QQ 音乐搜索<br/>多个候选依次取词]
     F -->|命中| G[取词 + 解析 LRC]
     F -->|没搜到| H[LRCLIB 兜底]
     H -->|命中| G
@@ -84,6 +87,9 @@ flowchart LR
     G --> I[写 cacheDir/lyrics/ 缓存]
     I --> J[逐行波浪滚动 + 焦点行分层]
 ```
+
+> 只拿到纯文本歌词时（没有时间轴）仍会显示，但不会滚动，来源标签上会注明「无时间轴」。
+> QQ 音乐那一步会依次试多个候选，优先取带时间轴的那份 —— 搜索结果里常有同名翻唱顶在前面。
 
 **封面**：任何一步命中就停，绝不为了"更好看"重复联网。
 
@@ -128,7 +134,7 @@ cd MelodyRetro
 装到手机（首次启动需要授予「音乐和音频」权限）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.6-release.apk
 ```
 
 > Release 包用的是 **debug 签名**，目的是能直接装上体验。要正式分发请换成你自己的 keystore。
@@ -254,6 +260,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 10 · 2.4.5-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 11 · 2.4.6-retro</sub>
 
 </div>

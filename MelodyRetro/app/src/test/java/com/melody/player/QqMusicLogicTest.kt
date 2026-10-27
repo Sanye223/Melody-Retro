@@ -3,6 +3,7 @@ package com.melody.player
 import com.melody.player.data.LyricRepository
 import com.melody.player.data.lyrics.LyricsException
 import com.melody.player.data.lyrics.QqMusicClient
+import com.melody.player.data.lyrics.QqSong
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -106,5 +107,44 @@ class QqMusicLogicTest {
         assertTrue(QqMusicClient.parseSearch("""{"code":0,"data":{}}""").isEmpty())
         assertTrue(QqMusicClient.parseSearch("""{"code":0,"data":{"song":{"list":[]}}}""").isEmpty())
         assertNull(QqMusicClient.pickBest(emptyList(), "x", "y", 0))
+    }
+
+    @Test
+    fun `候选列表把严格匹配排前，正版仍留在候选里`() {
+        // 真实场景：文件标签把歌手写成了「倒带」，搜索会命中一个同名的山寨条目，
+        // 它的歌词没有时间轴。正版必须还在候选里，上层才能继续取到有轴的歌词。
+        val knockoff = QqSong("m1", "倒带", "倒带", null, 261)
+        val official = QqSong("m2", "倒带", "蔡依林", null, 265)
+        val live = QqSong("m3", "倒带 (Live)", "周杰伦", null, 276)
+
+        val ordered = QqMusicClient.pickCandidates(
+            songs = listOf(live, official, knockoff),
+            title = "倒带",
+            artist = "倒带",
+            durationSec = 265,
+        )
+        assertEquals(listOf("m1", "m2", "m3"), ordered.map { it.mid })
+        // pickBest 仍然只取第一个，行为不变
+        assertEquals("m1", QqMusicClient.pickBest(listOf(live, official, knockoff), "倒带", "倒带", 265)?.mid)
+    }
+
+    @Test
+    fun `候选列表按 mid 去重`() {
+        val song = QqSong("same", "倒带", "蔡依林", null, 265)
+        val ordered = QqMusicClient.pickCandidates(
+            songs = listOf(song, song.copy(singers = "倒带")),
+            title = "倒带",
+            artist = "倒带",
+            durationSec = 265,
+        )
+        assertEquals(1, ordered.size)
+    }
+
+    @Test
+    fun `没有严格匹配时全部按时长接近度排序`() {
+        val far = QqSong("x", "倒带 (Live)", "周杰伦", null, 300)
+        val near = QqSong("y", "倒带", "蔡依林", null, 265)
+        val ordered = QqMusicClient.pickCandidates(listOf(far, near), "倒带", "蔡依林", 264)
+        assertEquals(listOf("y", "x"), ordered.map { it.mid })
     }
 }

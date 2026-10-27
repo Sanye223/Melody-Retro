@@ -21,9 +21,11 @@ import java.security.MessageDigest
  * 歌词加载，按以下顺序尝试：
  *
  * 1. 与音频同目录、同名的 `.lrc` / `.txt`（本地歌词，最快且离线可用）；
- * 2. **QQ 音乐**（主源，境内网络稳定）；
- * 3. LRCLIB（备用源，主要补 QQ 音乐没有的海外曲目）；
- * 4. 都没有 → 返回 [LyricsSource.NONE] 并带上可读的失败原因。
+ * 2. **音频文件内嵌的歌词标签**（FLAC 的 `LYRICS`、MP3 的 `USLT`）——
+ *    有带时间轴的就直接用，纯文本的留作兜底；
+ * 3. **QQ 音乐**（主源，境内网络稳定）；一次会试多个候选，优先取有带时间轴的；
+ * 4. LRCLIB（备用源，主要补 QQ 音乐没有的海外曲目）；
+ * 5. 都没有 → 返回 [LyricsSource.NONE] 并带上可读的失败原因。
  *
  * 在线结果会写入 `cacheDir/lyrics/`，同一首歌后续播放不再请求网络。
  */
@@ -32,6 +34,13 @@ object LyricRepository {
     private val timeTag = Regex("\\[(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?]")
     private val offsetTag = Regex("\\[offset:\\s*([+-]?\\d+)]", RegexOption.IGNORE_CASE)
     private val metaTag = Regex("^\\[[a-zA-Z#]+:.*]$")
+    private val timeAxis = Regex("\\[\\d{1,3}:\\d{1,2}")
+
+    /** 一次最多试几个 QQ 候选：太少容易停在翻唱上，太多会拖慢首屏。 */
+    private const val QQ_LYRIC_TRIES = 4
+
+    /** 歌词里有没有时间轴，决定它能不能跟着播放滚动。 */
+    private fun hasTimeTags(text: String): Boolean = timeAxis.containsMatchIn(text)
 
     private val memoryCache = object : LinkedHashMap<String, LyricsResult>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, LyricsResult>?): Boolean =
@@ -51,13 +60,25 @@ object LyricRepository {
             }
         }
 
-        // 1. 本地同名歌词文件
+        // 1. 本地同名歌词文件（用户显式放的，优先级最高）
         val local = runCatching { readLocalFile(query.path) }.getOrNull()
         if (local != null) {
             return@withContext LyricsResult(local, LyricsSource.LOCAL_FILE).also { saveMemory(memoryKey, it) }
         }
 
+        // 2. 音频内嵌的歌词标签。
+        // 带时间轴的直接用，连网都不用上 —— 这条能救掉大量「标签写错导致搜错歌」的情况。
+        val embedded = runCatching { EmbeddedLyrics.read(query.path) }
+            .getOrNull()
+            ?.let { parseLrc(it) }
+        if (embedded != null && embedded.synced) {
+            return@withContext LyricsResult(embedded, LyricsSource.EMBEDDED).also { saveMemory(memoryKey, it) }
+        }
+
         if (!onlineEnabled) {
+            if (embedded != null) {
+                return@withContext LyricsResult(embedded, LyricsSource.EMBEDDED).also { saveMemory(memoryKey, it) }
+            }
             return@withContext LyricsResult(null, LyricsSource.NONE, message = "在线歌词已在设置中关闭")
         }
 
@@ -99,7 +120,12 @@ object LyricRepository {
             return@withContext persist(context, key, lrclibAttempt).also { saveMemory(memoryKey, it) }
         }
 
-        mergeFailure(qqAttempt, lrclibAttempt)
+        val failure = mergeFailure(qqAttempt, lrclibAttempt)
+        // 在线彻底没戏时，至少把内嵌的纯文本歌词给出去
+        if (embedded != null) {
+            return@withContext LyricsResult(embedded, LyricsSource.EMBEDDED).also { saveMemory(memoryKey, it) }
+        }
+        failure
     }
 
     fun clearCache(context: Context) {
@@ -128,24 +154,37 @@ object LyricRepository {
             if (songs.isEmpty()) {
                 return Attempt.NotFound("QQ音乐没有搜到「${query.title}」")
             }
-            val best = QqMusicClient.pickBest(
+            val candidates = QqMusicClient.pickCandidates(
                 songs = songs,
                 title = query.title,
                 artist = query.artist,
                 durationSec = (query.durationMs / 1000L).toInt(),
-            ) ?: return Attempt.NotFound("QQ音乐没有可用的搜索结果")
-
-            val lyricText = QqMusicClient.fetchLyric(best.mid)
-                ?: return Attempt.NotFound("QQ音乐里这首歌暂无歌词")
-
-            Attempt.Found(
-                text = lyricText,
-                provider = QqMusicClient.label,
-                matched = buildString {
-                    append(best.name)
-                    if (best.singers.isNotBlank()) append(" - ").append(best.singers)
-                },
             )
+            if (candidates.isEmpty()) return Attempt.NotFound("QQ音乐没有可用的搜索结果")
+
+            // 逐个候选取歌词：拿到带时间轴的立刻返回；
+            // 只有纯文本的先记下来，继续试下一个 —— 否则会停在翻唱/山寨条目上，歌词永远不滚动。
+            var unsyncedFallback: Attempt.Found? = null
+            for (song in candidates.take(QQ_LYRIC_TRIES)) {
+                val text = try {
+                    QqMusicClient.fetchLyric(song.mid)
+                } catch (exception: LyricsException) {
+                    if (exception.isNetwork) throw exception
+                    null
+                } ?: continue
+
+                val found = Attempt.Found(
+                    text = text,
+                    provider = QqMusicClient.label,
+                    matched = buildString {
+                        append(song.name)
+                        if (song.singers.isNotBlank()) append(" - ").append(song.singers)
+                    },
+                )
+                if (hasTimeTags(text)) return found
+                if (unsyncedFallback == null) unsyncedFallback = found
+            }
+            unsyncedFallback ?: Attempt.NotFound("QQ音乐里这首歌暂无可用歌词")
         } catch (exception: LyricsException) {
             Attempt.Failed(exception.message ?: "QQ音乐请求失败", exception.isNetwork)
         } catch (throwable: Exception) {

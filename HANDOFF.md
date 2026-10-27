@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.5-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.6-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.4.5-retro (versionCode 10) |
+| 版本 | 2.4.6-retro (versionCode 11) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.6-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -100,8 +100,9 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk    # 已经有打
 | `data/artwork/OnlineArtworkClient.kt` | 联网找封面：QQ 音乐 → iTunes、**打分**、下载、图片校验 | 匹配不准 / 新增数据源 |
 | `data/artwork/OnlineArtworkStore.kt` | 封面磁盘缓存、负缓存 7 天、并发 2、LRU | 缓存策略 |
 | `data/artwork/ArtworkBackfill.kt` | 设置页「补全缺失封面」批处理 | — |
-| `data/LyricRepository.kt` | 歌词加载链：本地 `.lrc` → 在线 → 空；LRC 解析 | 歌词显示问题 |
-| `data/lyrics/QqMusicClient.kt` | QQ 音乐搜索 + 取词（**主源**） | 歌词搜不到 |
+| `data/LyricRepository.kt` | 歌词加载链：本地 `.lrc` → 内嵌标签 → QQ → LRCLIB → 空；LRC 解析 | 歌词显示问题 |
+| `data/EmbeddedLyrics.kt` | 读音频内嵌歌词（FLAC Vorbis comment / ID3v2 USLT），离线 | 歌词来源 / 「不滚动」 |
+| `data/lyrics/QqMusicClient.kt` | QQ 音乐搜索 + 取词（**主源**，多候选取带轴的） | 歌词搜不到 |
 | `data/lyrics/LrclibClient.kt` | LRCLIB（兜底，补欧美） | — |
 | `data/lyrics/LyricsHttp.kt` | 共用 HTTP GET、超时、异常模型 | — |
 | `data/TrackInfo.kt` | 格式/位深/码率/采样率，`MediaExtractor` + 文件头解析 | 歌曲信息显示 |
@@ -135,6 +136,12 @@ Header: Referer: https://y.qq.com/    User-Agent: 任意浏览器 UA
 2. `nobase64=1` 才返回明文 LRC；万一还是 base64，客户端会自己解码。
 3. 接口会把 `:` 转义成 `&#58;`（`[00&#58;30.94]`），**不解码时间轴就全废**。
 4. `retcode = 1101` 表示"这首歌没歌词"，按无歌词处理，**不要当异常报错**。
+
+5. **不能只取第一个候选**。搜索结果里常有同名翻唱/山寨条目排在正版前面，它们的歌词往往没有时间轴，
+   表现为「歌词能显示但不滚动」。`pickCandidates` 会返回整份排序过的候选，上层逐个取词，
+   拿到带时间轴的就停（最多 4 个）。
+6. **标签里的 ARTIST 经常是错的**（例如把歌手写成歌名）。这类文件靠在线搜索必然搜错歌，
+   所以必须优先读内嵌歌词标签 —— 见 `data/EmbeddedLyrics.kt`。
 
 ### 3.2 iTunes — 封面兜底
 
@@ -182,6 +189,7 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 布局跳动 | 歌词的缩放/透明度**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
 | 歌词换行卡顿 | 别用 `animateScrollToItem` 让整块文字平移（节奏由跨行数决定，忽快忽慢）。改成布局 `dispatchRawDelta` 瞬移 + 每行 `Modifier.lyricRowMotion` 弹簧追上来，才有波浪 |
 | 取色死黑 | `Palette` 要优先 `vibrant` 而不是 `dominant`，否则大面积黑封面的专辑会得到一片黑 |
+| 歌词「能显示但不滚动」 | 只有一个原因：拿到的是没有时间轴的纯文本（`Lyrics.synced = false`）。来源标签会标注「无时间轴」。常见成因是标签把歌手写错 → 搜到山寨条目 → 那份歌词没时间轴 |
 
 ---
 
@@ -189,20 +197,23 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 
 ```bash
 cd MelodyRetro
-./gradlew.bat testDebugUnitTest                       # 57 项，含真实联网冒烟测试
+./gradlew.bat testDebugUnitTest                       # 92 项，含真实联网冒烟测试
 ./gradlew.bat testDebugUnitTest -PproxyHost=127.0.0.1 -PproxyPort=8080
 ```
 
 | 测试类 | 内容 | 数量 |
 | --- | --- | --- |
 | `LyricsLogicTest` | LRC 解析 / offset / 多时间标签 / 二分定位 / 候选排序 | 8 |
-| `QqMusicLogicTest` | QQ 搜索 JSON、`&#58;` 还原、无歌词、异常码、选歌 | 8 |
+| `QqMusicLogicTest` | QQ 搜索 JSON、`&#58;` 还原、无歌词、异常码、选歌、候选排序 | 11 |
+| `EmbeddedLyricsTest` | 内嵌歌词：合成 FLAC Vorbis comment / ID3v2 USLT、UTF-8 与 UTF-16、截断容错 | 13 |
+| `LyricFocusMotionTest` | 弹簧轨迹 / 刷新率无关 / 透明度阶梯 / 模糊半径 / 焦点与尾部内边距 | 13 |
+| `LyricDefaultsMigrationTest` | 歌词默认值迁移的边界（只改旧默认、不覆盖用户设置） | 6 |
 | `OnlineArtworkLogicTest` | 打分 / 归一化 / 文件名解析 / iTunes 解析 / 图片校验 | 22 |
 | `TrackInfoTest` | 位深解析（FLAC/WAV/AIFF）、码率估算、格式化 | 13 |
 | `LrclibLiveTest` | **真实联网**：QQ 搜索→取词→解析→定位，LRCLIB 兜底 | 2（跳网自动 skip） |
 | `OnlineArtworkLiveTest` | **真实联网**：搜索→打分→下载→校验 | 4（同上） |
 
-当前全绿：**57 通过 / 0 失败 / 0 跳过**。
+当前全绿：**92 通过 / 0 失败 / 0 跳过**。
 
 `LrclibLiveTest` 走的是**生产代码**（真实 HTTP → `pickBest` → `parseLrc`），只是运行在 JVM，
 所以除 Compose 渲染外的全链路都能验证。
@@ -253,7 +264,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.4.5-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.4.6-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

@@ -70,7 +70,7 @@ data class Lyrics(
 }
 
 /** 歌词来源：同名 .lrc 文件 / 在线歌词库 / 没有找到。 */
-enum class LyricsSource { LOCAL_FILE, ONLINE, NONE }
+enum class LyricsSource { LOCAL_FILE, EMBEDDED, ONLINE, NONE }
 
 data class LyricsResult(
     val lyrics: Lyrics?,

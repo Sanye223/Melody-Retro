@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.5--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.6--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -59,7 +59,7 @@ exist or don't scroll. Three things here are deliberately different:
 | **Browse** | Song list with live search and now-playing highlight, adaptive album grid, circular artist list, detail screens for both |
 | **Playback** | Play / pause / prev / next / seek / shuffle / repeat-one / repeat-all |
 | **Background** | `MediaSessionService` + ExoPlayer: notification and lock-screen controls, audio focus, pause on headphone unplug, keeps playing screen-off |
-| **Lyrics** | Sidecar `.lrc` → QQ Music → LRCLIB. Auto-scroll, tap-to-seek, results cached to disk |
+| **Lyrics** | Sidecar `.lrc` → tags embedded in the file → QQ Music → LRCLIB. Per-row wave scroll, tap-to-seek, results cached to disk |
 | **Cover art** | Embedded art first; otherwise queried by title / album / artist, scored, validated, cached |
 | **Track info** | One small line under the artist: `FLAC • 24-bit • 1411 kb/s • 48 kHz`. Toggleable |
 | **Looks** | Artwork-driven palette, light / dark / system, `NavigationBar` on phones and `NavigationRail` on tablets |
@@ -67,16 +67,19 @@ exist or don't scroll. Three things here are deliberately different:
 
 ## Under the hood: the two pipelines
 
-**Lyrics.** Local beats remote. Remote is best-effort, and a total miss degrades to a placeholder —
-never an error dialog.
+**Lyrics.** Sidecar first, then whatever the file already carries in its tags, and only then the
+network. Remote is best-effort; a total miss degrades to a placeholder — never an error dialog.
+Tagged lyrics are usually timed, so plenty of tracks scroll without a single request.
 
 ```mermaid
 flowchart LR
     A[Track starts] --> B{"Sidecar .lrc?"}
     B -->|yes| C["Local lyrics<br/>source label: local file"]
-    B -->|no| D{Online lyrics toggle}
+    B -->|no| K{"Lyrics in the tags?"}
+    K -->|yes, timed| L["Embedded lyrics<br/>label: embedded<br/>offline, no request"]
+    K -->|no / plain text| D{Online lyrics toggle}
     D -->|off| E["No lyrics<br/>prompt to enable in Settings"]
-    D -->|on| F[QQ Music search]
+    D -->|on| F["QQ Music search<br/>several candidates tried"]
     F -->|hit| G[Fetch + parse LRC]
     F -->|miss| H[LRCLIB fallback]
     H -->|hit| G
@@ -84,6 +87,10 @@ flowchart LR
     G --> I["Cache to cacheDir/lyrics/"]
     I --> J[Per-row spring wave + focus hierarchy]
 ```
+
+> Plain text with no timestamps still shows, but it won't scroll — the source label says so.
+> The QQ step walks several candidates until one comes back with timings; the first result is
+> often a cover or a knock-off upload with untimed lyrics.
 
 **Cover art.** First hit wins. No "let me double-check with another source" — that's how you get
 rate-limited.
@@ -129,7 +136,7 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.5-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.6-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
@@ -248,6 +255,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 10 · 2.4.5-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 11 · 2.4.6-retro</sub>
 
 </div>
