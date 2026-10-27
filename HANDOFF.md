@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.6-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.7-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.4.6-retro (versionCode 11) |
+| 版本 | 2.4.7-retro (versionCode 12) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.6-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.7-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -188,6 +188,7 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | `Slider` 自定义 thumb | 需要 `@OptIn(ExperimentalMaterial3Api::class)` |
 | 布局跳动 | 歌词的缩放/透明度**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
 | 歌词换行卡顿 | 别用 `animateScrollToItem` 让整块文字平移（节奏由跨行数决定，忽快忽慢）。改成布局 `dispatchRawDelta` 瞬移 + 每行 `Modifier.lyricRowMotion` 弹簧追上来，才有波浪 |
+| 歌词里露出 `<00:00.245>` | 那是**增强型 LRC 的逐字时间标签**（QQ 下载的曲子常见）。行级 `[mm:ss.xx]` 与逐字 `<mm:ss.xxx>` 都要从正文里剥掉；整行没有行级标签时，取**第一个**逐字标签当行时间（全取会一行拆成几十行） |
 | 取色死黑 | `Palette` 要优先 `vibrant` 而不是 `dominant`，否则大面积黑封面的专辑会得到一片黑 |
 | 歌词「能显示但不滚动」 | 只有一个原因：拿到的是没有时间轴的纯文本（`Lyrics.synced = false`）。来源标签会标注「无时间轴」。常见成因是标签把歌手写错 → 搜到山寨条目 → 那份歌词没时间轴 |
 
@@ -203,7 +204,7 @@ cd MelodyRetro
 
 | 测试类 | 内容 | 数量 |
 | --- | --- | --- |
-| `LyricsLogicTest` | LRC 解析 / offset / 多时间标签 / 二分定位 / 候选排序 | 8 |
+| `LyricsLogicTest` | LRC 解析 / offset / 多时间标签 / 增强型逐字标签 / 二分定位 / 候选排序 | 12 |
 | `QqMusicLogicTest` | QQ 搜索 JSON、`&#58;` 还原、无歌词、异常码、选歌、候选排序 | 11 |
 | `EmbeddedLyricsTest` | 内嵌歌词：合成 FLAC Vorbis comment / ID3v2 USLT、UTF-8 与 UTF-16、截断容错 | 13 |
 | `LyricFocusMotionTest` | 弹簧轨迹 / 刷新率无关 / 透明度阶梯 / 模糊半径 / 焦点与尾部内边距 | 13 |
@@ -264,7 +265,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.4.6-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.4.7-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.6--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.7--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -136,7 +136,7 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.6-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.7-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
@@ -255,6 +255,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 11 · 2.4.6-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 12 · 2.4.7-retro</sub>
 
 </div>

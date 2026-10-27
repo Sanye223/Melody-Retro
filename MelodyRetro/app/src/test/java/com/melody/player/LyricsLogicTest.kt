@@ -111,6 +111,58 @@ class LyricsLogicTest {
         assertEquals(null, LrclibClient.pickBest(emptyList(), "某歌", "某人", 100))
     }
 
+    // ---------------------------------------------------------------- 增强型 LRC
+
+    /** 取自真实 QRC 转出的增强型 LRC：每字一个 `<mm:ss.xxx>`，行首没有 `[...]`。 */
+    private val enhancedSample = """
+        <00:00.245>周<00:00.382>杰<00:00.473>伦 <00:00.608>-<00:00.745>三<00:00.881>年<00:01.018>二<00:01.155>班
+        <00:06.512>训<00:06.695>导<00:06.832>处<00:07.015>报<00:07.243>告
+    """.trimIndent()
+
+    @Test
+    fun `逐字时间标签不会出现在歌词正文里`() {
+        val lyrics = requireNotNull(LyricRepository.parseLrc(enhancedSample))
+        assertTrue(lyrics.synced)
+        assertEquals(2, lyrics.lines.size)
+        // 空格是原文带的（"伦 " 后面才是 "-"），只剔标签、不重排文字
+        assertEquals("周杰伦 -三年二班", lyrics.lines[0].text)
+        assertEquals("训导处报告", lyrics.lines[1].text)
+        assertFalse(lyrics.lines.any { it.text.contains('<') })
+    }
+
+    @Test
+    fun `没有行级标签时用第一个逐字标签当行时间`() {
+        val lyrics = requireNotNull(LyricRepository.parseLrc(enhancedSample))
+        // 235 + 10 = 245ms，6512ms —— 一个字的标签不能各算一行
+        assertEquals(245L, lyrics.lines[0].timeMs)
+        assertEquals(6_512L, lyrics.lines[1].timeMs)
+    }
+
+    @Test
+    fun `行级与逐字标签混用时只按行级时间切分`() {
+        val lyrics = requireNotNull(
+            LyricRepository.parseLrc(
+                """
+                [00:10.00]<00:10.00>爱<00:10.20>你
+                [00:20.00]没<00:20.00>有<00:20.30>标签的行
+                """.trimIndent(),
+            ),
+        )
+        assertEquals(2, lyrics.lines.size)
+        assertEquals(10_000L, lyrics.lines[0].timeMs)
+        assertEquals("爱你", lyrics.lines[0].text)
+        assertEquals(20_000L, lyrics.lines[1].timeMs)
+        assertEquals("没有标签的行", lyrics.lines[1].text)
+    }
+
+    @Test
+    fun `逐字标签不冒充元数据`() {
+        // 只有逐字标签的文件不该被误判成纯文本，也不该把 <...> 当 [ar:...] 丢掉
+        val lyrics = requireNotNull(LyricRepository.parseLrc("<00:01.00>a"))
+        assertTrue(lyrics.synced)
+        assertEquals("a", lyrics.lines.single().text)
+    }
+
     private fun record(
         id: Long,
         track: String,

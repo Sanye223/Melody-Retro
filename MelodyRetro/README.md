@@ -4,7 +4,7 @@
 **视觉层完全按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做**：
 配色由当前歌曲封面决定、整屏竖向渐变、通栏迷你播放器、紧凑网格。
 
-- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.6-retro**，目录 `MelodyRetro/`
+- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.7-retro**，目录 `MelodyRetro/`
 - 最低支持 **Android 7.0（API 24）**，目标 **Android 15（API 35）**
 - 这是项目当前**唯一**的版本。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`）
   已于 2026-10-27 彻底移除（代码、git 历史、本机备份、手机安装包全部清除），
@@ -90,7 +90,7 @@ Kotlin + Jetpack Compose 重新实现（原项目是 `compileSdk 36` + KSP/Realm
 | 专辑 | 自适应网格（`LazyVerticalGrid` + `GridCells.Adaptive`），点击进入专辑详情 |
 | 艺术家 | 圆形封面列表，点击进入艺术家详情 |
 | 播放控制 | 播放 / 暂停 / 上一曲 / 下一曲 / 进度条拖动 / 随机播放 / 单曲循环 / 列表循环 |
-| 滚动歌词 | 解析 LRC（含 `[mm:ss.xx]` 时间轴、offset 偏移），随播放进度逐行滚动并高亮，点击歌词行可跳转 |
+| 滚动歌词 | 解析 LRC（含 `[mm:ss.xx]` 时间轴、offset 偏移），随播放进度逐行滚动并高亮，点击歌词行可跳转；兼容增强型 LRC 的逐字标签 `<mm:ss.xxx>`（自动剥离，不显示成正文） |
 | 歌词来源 | 同名 `.lrc` → **音频内嵌标签**（FLAC `LYRICS` / MP3 `USLT`，离线） → QQ 音乐 → LRCLIB，命中即停 |
 | 在线歌词 | 对接 **QQ 音乐**（主源，多候选取带时间轴的那份）与 LRCLIB（兜底），按 标题 + 艺术家 + 时长 自动匹配同步歌词，结果本地缓存，可开关与手动重搜 |
 | 在线封面 | 内嵌封面缺失时，按专辑名/艺术家从 **QQ 音乐 → iTunes** 检索并缓存，支持批量补全，可开关 |
@@ -155,6 +155,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 - 支持标准 LRC：`[00:12.34]歌词内容`、一行多时间标签、`[offset:±毫秒]` 偏移
+- 支持**增强型 LRC**：`<00:12.34>` 这种逐字时间标签会被剥离；整行没有 `[mm:ss]` 时
+  用第一个逐字标签当行时间，所以照样能滚动（QQ 音乐下载的曲子常见这种格式）
 - 自动识别 `UTF-8` / `GB18030` 编码（含 BOM）
 - 若 `.lrc` 只有纯文本没有时间轴，则以静态歌词展示（不滚动）
 

@@ -32,9 +32,21 @@ import java.security.MessageDigest
 object LyricRepository {
 
     private val timeTag = Regex("\\[(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?]")
+
+    /**
+     * 增强型 LRC 的**逐字**时间标签：`<00:12.34>`。
+     *
+     * 这种格式由 QQ 音乐、部分车载/播放器软件写出，一行里每个字（或每个词）前挂一个。
+     * 我们只有行级滚动的能力，所以这些标签必须**从正文里去掉**，
+     * 否则会原样显示成 `<00:00.245>周<00:00.382>杰…` 这种噪音。
+     */
+    private val wordTag = Regex("<(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?>")
+
     private val offsetTag = Regex("\\[offset:\\s*([+-]?\\d+)]", RegexOption.IGNORE_CASE)
     private val metaTag = Regex("^\\[[a-zA-Z#]+:.*]$")
-    private val timeAxis = Regex("\\[\\d{1,3}:\\d{1,2}")
+
+    /** 行级或逐字级时间轴都算「能滚动」。 */
+    private val timeAxis = Regex("[\\[<]\\d{1,3}:\\d{1,2}")
 
     /** 一次最多试几个 QQ 候选：太少容易停在翻唱上，太多会拖慢首屏。 */
     private const val QQ_LYRIC_TRIES = 4
@@ -317,16 +329,22 @@ object LyricRepository {
             val line = raw.trim()
             if (line.isEmpty()) continue
 
-            val matches = timeTag.findAll(line).toList()
-            if (matches.isEmpty()) {
+            // 行级 [mm:ss.xx] 优先；整行都没有的话，退回用第一个逐字 <mm:ss.xxx> 当行时间。
+            // 注意只取第一个：逐字标签是每字一个，全拿来会解析出「一行拆成几十行」。
+            val lineMarks = timeTag.findAll(line).toList()
+            val marks: List<MatchResult> =
+                if (lineMarks.isNotEmpty()) lineMarks
+                else listOfNotNull(wordTag.find(line))
+            if (marks.isEmpty()) {
                 if (metaTag.matches(line)) continue
                 plain += line
                 continue
             }
 
-            val content = line.replace(timeTag, "").trim()
+            // 两种标签都要从正文里剔掉，否则会原样显示成 <00:00.245>周 这种噪音。
+            val content = line.replace(timeTag, "").replace(wordTag, "").trim()
             if (content.isEmpty()) continue
-            for (match in matches) {
+            for (match in marks) {
                 val minute = match.groupValues[1].toLongOrNull() ?: 0L
                 val second = match.groupValues[2].toLongOrNull() ?: 0L
                 val fraction = match.groupValues[3]

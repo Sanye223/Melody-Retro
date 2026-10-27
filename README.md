@@ -12,7 +12,7 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.6--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.7--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -134,7 +134,7 @@ cd MelodyRetro
 装到手机（首次启动需要授予「音乐和音频」权限）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.6-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.7-release.apk
 ```
 
 > Release 包用的是 **debug 签名**，目的是能直接装上体验。要正式分发请换成你自己的 keystore。
@@ -260,6 +260,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 11 · 2.4.6-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 12 · 2.4.7-retro</sub>
 
 </div>
