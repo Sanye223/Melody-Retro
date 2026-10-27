@@ -7,11 +7,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -119,7 +116,6 @@ import com.melody.player.ui.components.AlbumArt
 import com.melody.player.ui.components.LYRIC_FOCUS_SCALE
 import com.melody.player.ui.components.LYRIC_IDLE_SCALE
 import com.melody.player.ui.components.LYRIC_MOTION_MS
-import com.melody.player.ui.components.LocalPlayerSheetDrag
 import com.melody.player.ui.components.LyricAutoScrollShift
 import com.melody.player.ui.components.LyricMotionEasing
 import com.melody.player.ui.components.lyricFocusOffsetPx
@@ -215,24 +211,10 @@ fun NowPlayingScreen(onBack: () -> Unit) {
     val gradientMiddle by animateColorAsState(retro.gradientMiddle, tween(560), label = "gradientMiddle")
     val gradientBottom by animateColorAsState(retro.gradientBottom, tween(560), label = "gradientBottom")
 
-    // 下滑收起：位移交给宿主（AppRoot）的抽屉状态。
-    // 只在「子级没吃掉这次拖动」时生效 —— 歌词列表、进度条都会先消费自己的手势。
-    val sheetDrag = LocalPlayerSheetDrag.current
-    val sheetDragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta) }
-    val sheetDragModifier = if (sheetDrag == null) {
-        Modifier
-    } else {
-        Modifier.draggable(
-            state = sheetDragState,
-            orientation = Orientation.Vertical,
-            onDragStopped = { velocity -> sheetDrag.onEnd(velocity) },
-        )
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .then(sheetDragModifier)
+            // 上下滑由宿主的抽屉统一接管（手势挂在面板根上），这里只负责显示
             .background(
                 Brush.verticalGradient(
                     colorStops = arrayOf(

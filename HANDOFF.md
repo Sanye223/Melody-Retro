@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.5.0-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.5.1-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.5.0-retro (versionCode 15) |
+| 版本 | 2.5.1-retro (versionCode 16) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.5.0-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.5.1-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -190,7 +190,9 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 布局跳动 | 歌词的缩放/透明度**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
 | 歌词换行卡顿 | 别用 `animateScrollToItem` 让整块文字平移（节奏由跨行数决定，忽快忽慢）。改成布局 `dispatchRawDelta` 瞬移 + 每行 `Modifier.lyricRowMotion` 弹簧追上来，才有波浪 |
 | 播放页不能做成导航目的地 | 做 `NavHost` 目的地时，退出动画开始前下层页面已被拆掉，下滑收起会露出空白。必须做成盖在主界面上的抽屉（`PlayerSheetOverlay`），手势位移与收起动画共用同一个 `progress`，否则「松手 → 跳回原位 → 再播动画」 |
-| 上下滑用哪套动画 | 对齐 RetroMusicPlayer 的 `BottomSheetBehavior`：**整块面板做 `translationY` 平移**，`offset = progress × (屏幕高 − 底部栏高)`，全程不缩放不变形，1:1 跟手。尾段（`SHEET_FADE_START = 0.72`）淡出，底部栏交叉显出来 |
+| 上下滑用哪套动画 | 对齐 RetroMusicPlayer 的 `BottomSheetBehavior`：**整块面板做 `translationY` 平移**，`offset = progress × (屏幕高 − 底部栏高)`，全程不缩放不变形，1:1 跟手。**迷你播放器必须是面板顶部的一条**，否则收起时它不跟着走（用户一眼就能看出来） |
+| 迷你播放器放哪 | 上游 `sliding_music_panel_layout.xml` 里 MiniPlayer 是面板的子 View、叠在播放页之上。放底栏（Scaffold `bottomBar`）是错的：面板平移时它不动，观感完全不同。底部栏只留一个同高的 `Spacer` 占位 + 测量 |
+| 导航栏 z 序 | 面板收起时会盖住底部栏区域，所以 `NavigationBar` 必须画在**面板之上**（Box 最后声明），并按 `miniAlphaAt` 淡出 + 下移出屏。否则要么被面板挡住，要么展开时挡在播放页上 |
 | 别用「从点击处缩放生长」 | 2.4.9 试过以底部中心缩放（缩到迷你播放器那么大），观感是页面在变形，且缩到 0.5 时手势位移要 `× scale` 还原，容易踩坑。用户否决，已回退为平移 |
 | 缩放层里的手势位移 | 若将来又给面板加 `graphicsLayer` 缩放，拖动位移是**本地坐标**（缩到 0.5 时手指走 10px 报 20px），必须 `× scale` 还原。当前面板只有平移，不需要换算 |
 | 进度条圆点跑偏 / 两端被裁 | 别用 `Slider` 的 `thumb` / `track` 槽位拼（M3 1.3 里自定义 track 高度会让拇指不居中对齐）。进度条改为自绘 `Canvas`，且**两端各留一个拇指半径的 inset**，`seekProgressAtX` / `seekThumbCenterX` 用同一套换算才拖得准 |
@@ -272,7 +274,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.5.0-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.5.1-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

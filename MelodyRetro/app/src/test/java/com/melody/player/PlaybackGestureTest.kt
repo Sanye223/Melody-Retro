@@ -1,8 +1,9 @@
 package com.melody.player
 
 import com.melody.player.ui.components.SHEET_DISMISS_THRESHOLD
-import com.melody.player.ui.components.SHEET_FADE_START
-import com.melody.player.ui.components.sheetAlphaAt
+import com.melody.player.ui.components.SHEET_CROSSFADE_CENTER
+import com.melody.player.ui.components.miniAlphaAt
+import com.melody.player.ui.components.playerAlphaAt
 import com.melody.player.ui.components.sheetProgressAfterDrag
 import com.melody.player.ui.components.sheetOffsetAt
 import com.melody.player.ui.components.sheetSettleTarget
@@ -120,7 +121,7 @@ class PlaybackGestureTest {
     @Test
     fun `展开状态铺满屏幕`() {
         assertEquals(0f, sheetOffsetAt(0f, travel), 0.0001f)
-        assertEquals(1f, sheetAlphaAt(0f), 0f)
+        assertEquals(1f, playerAlphaAt(0f), 0f)
     }
 
     @Test
@@ -152,10 +153,26 @@ class PlaybackGestureTest {
     }
 
     @Test
-    fun `最后一段淡出以衔接迷你播放器`() {
-        assertEquals(1f, sheetAlphaAt(SHEET_FADE_START), 0.0001f)
-        assertTrue(sheetAlphaAt(0.95f) in 0.01f..0.99f)
-        assertEquals(0f, sheetAlphaAt(1f), 0.0001f)
+    fun `播放页与迷你播放器在尾段交叉淡化`() {
+        // 展开态：整页可见，迷你播放器让位
+        assertEquals(1f, playerAlphaAt(0f), 0.0001f)
+        assertEquals(0f, miniAlphaAt(0f), 0.0001f)
+        // 收起态：整页让位，迷你播放器完整露出
+        assertEquals(0f, playerAlphaAt(1f), 0.0001f)
+        assertEquals(1f, miniAlphaAt(1f), 0.0001f)
+        // 交叉中点两者各占一半，加起来不透明 —— 不会露出底下的列表
+        val half = playerAlphaAt(SHEET_CROSSFADE_CENTER)
+        assertTrue("中点应该正在淡化：$half", half in 0.01f..0.99f)
+        assertEquals(1f, half + miniAlphaAt(SHEET_CROSSFADE_CENTER), 0.0001f)
+    }
+
+    @Test
+    fun `淡入淡出都在最后一段完成`() {
+        // 面板走过七成之后才开始交叉，前面大段拖动都是不透明的整块位移
+        assertEquals(1f, playerAlphaAt(0.7f), 0.0001f)
+        assertEquals(0f, miniAlphaAt(0.7f), 0.0001f)
+        assertEquals(0f, playerAlphaAt(0.9f), 0.0001f)
+        assertEquals(1f, miniAlphaAt(0.9f), 0.0001f)
     }
 
     @Test

@@ -3,6 +3,9 @@ package com.melody.player.ui.components
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,11 +15,9 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
@@ -34,19 +35,15 @@ import kotlinx.coroutines.launch
 /**
  * 播放页「抽屉」：把整块 NowPlaying 放在主界面之上，整块上下平移。
  *
- * 模型完全对齐 RetroMusicPlayer 的 `AbsSlidingMusicPanelActivity`（Material `BottomSheetBehavior`）：
- * 面板不是从某个点缩放开来的，而是一整块不透明的板子在 [translationY] 上滑动 ——
- * 手指往下走多少，板子就往下走多少，跟手 1:1，过程中**不缩放、不变形**。
+ * 结构对齐 RetroMusicPlayer（`AbsSlidingMusicPanelActivity` + `sliding_music_panel_layout.xml`）：
+ * 面板自己带背景，**迷你播放器是面板顶部的一条**，播放页叠在它上面。
+ * 所以收起/展开时迷你播放器跟着面板一起走 —— 它不是固定在底栏里的另一个控件。
  *
- * - `progress = 0` 完全展开（贴住屏幕顶）
- * - `progress = 1` 完全收起（面板退到「只剩底部栏那么高」的位置，剩余部分在屏幕下方）
+ * - `progress = 0` 完全展开（贴住屏幕顶，迷你播放器被推到上面并淡掉）
+ * - `progress = 1` 完全收起（面板顶边落在底部栏顶边，露出的正是迷你播放器）
  *
- * 收起时面板顶部那一条虽然还压在迷你播放器位置上，但 [sheetAlphaAt] 已把它淡成 0，
- * 于是露出的正是下面的迷你播放器 —— 与 Retro 把 MiniPlayer 放进面板顶部、
- * 再按 `1 - progress / 0.2f` 淡出是同一个观感。
- *
- * 手势与动画共用同一个 progress，所以手指松开的瞬间动画能从当前位置与速度接着走，
- * 不会「先跳回原位再播收起动画」——这是手感丝滑的关键。
+ * 手势挂在面板根上（相当于上游由 `BottomSheetBehavior` 统一接管），
+ * 面板内部的内容只管显示，这样迷你播放器淡出/被卸载时也不会把手势打断。
  */
 
 /** 从起点锚点拖出屏幕高度的这个比例，就按拖动方向提交（否则回弹到起点）。 */
@@ -90,38 +87,32 @@ private val SheetShadow = 22.dp
  * 面板向下平移的距离（px）。
  *
  * `progress = 1` 时正好是 `height - bottomBar`：面板顶边落在底部栏顶边上，
- * 也就是「板子整块退到屏幕下方，只留底部栏露在外面」。
+ * 也就是「板子整块退到屏幕下方，只留迷你播放器探出来」。
  */
 internal fun sheetOffsetAt(progress: Float, travelPx: Float): Float =
     progress.coerceIn(0f, 1f) * travelPx.coerceAtLeast(0f)
 
-/**
- * 尾段淡出的起点。
- *
- * 面板退到最后一段时已经盖住底部栏，这里让它一边继续下移一边淡出，
- * 底部栏（迷你播放器）就跟着渐显出来 —— 等价于 Retro 里
- * `miniPlayer.alpha = 1 - progress / 0.2f` 的交叉淡化，
- * 这样上滑的第一段也有渐变反馈，不会「手指动了画面没动」。
- */
-internal const val SHEET_FADE_START = 0.72f
+/** 交叉淡化的中点：到这里播放页已完全让位、迷你播放器完全接上。 */
+internal const val SHEET_CROSSFADE_CENTER = 0.80f
 
-/** 尾段透明度：1 → 0（smoothstep）。 */
-internal fun sheetAlphaAt(progress: Float): Float {
-    val p = progress.coerceIn(0f, 1f)
-    if (p <= SHEET_FADE_START) return 1f
-    val t = (p - SHEET_FADE_START) / (1f - SHEET_FADE_START)
-    return 1f - t * t * (3f - 2f * t)
-}
+/** 交叉区间半宽，总区间是 [0.72, 0.88]。 */
+internal const val SHEET_CROSSFADE_HALF = 0.08f
+
+/** 播放页内容的透明度：展开时为 1，退到最后一段时让给迷你播放器。 */
+internal fun playerAlphaAt(progress: Float): Float =
+    ((SHEET_CROSSFADE_CENTER + SHEET_CROSSFADE_HALF - progress) / (SHEET_CROSSFADE_HALF * 2f))
+        .coerceIn(0f, 1f)
+
+/** 面板顶部迷你播放器的透明度：只在最后一段出现，与播放页互补。 */
+internal fun miniAlphaAt(progress: Float): Float =
+    ((progress - (SHEET_CROSSFADE_CENTER - SHEET_CROSSFADE_HALF)) / (SHEET_CROSSFADE_HALF * 2f))
+        .coerceIn(0f, 1f)
 
 @Stable
 class PlayerSheetState(initiallyOpen: Boolean = false) {
 
     /** 0 = 展开，1 = 收起。手势与动画共写同一个值。 */
     var progress by mutableFloatStateOf(if (initiallyOpen) 0f else 1f)
-        private set
-
-    /** 是否还需要绘制：收起动画跑完才置 false，避免动画中途被拆掉。 */
-    var isMounted by mutableStateOf(initiallyOpen)
         private set
 
     /** 屏幕高度（px），手势换算比例要用。 */
@@ -133,6 +124,9 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
     /** 手势要走完的距离：从贴住屏幕顶，到退成「只剩底部栏」。 */
     internal val travelPx: Float
         get() = (heightPx - bottomBarHeightPx).coerceAtLeast(1f)
+
+    /** 面板是否处于（部分）展开状态 —— 返回键要用。 */
+    val isOpen: Boolean get() = progress < 0.999f
 
     private var motion: Job? = null
 
@@ -147,9 +141,7 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
             gestureOrigin = if (progress >= 0.5f) 1f else 0f
         }
         // 用 travel 而不是整屏高度换算：手指走多远，板子就走多远，一一对应
-        val next = sheetProgressAfterDrag(progress, deltaY, travelPx)
-        if (next < 1f) isMounted = true
-        progress = next
+        progress = sheetProgressAfterDrag(progress, deltaY, travelPx)
     }
 
     /** 手指重新按下时掐掉上一段动画，避免「追着手指又被动画拽回去」。 */
@@ -180,7 +172,6 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
 
     private fun animateTo(scope: CoroutineScope, target: Float, velocityPxPerSecond: Float) {
         motion?.cancel()
-        if (target < 1f) isMounted = true
         motion = scope.launch {
             val initial = if (travelPx > 0f) velocityPxPerSecond / travelPx else 0f
             animate(
@@ -197,7 +188,6 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
                 velocity
             }
             progress = target
-            if (target >= 1f) isMounted = false
         }
     }
 }
@@ -206,30 +196,19 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
 fun rememberPlayerSheetState(initiallyOpen: Boolean = false): PlayerSheetState =
     remember { PlayerSheetState(initiallyOpen) }
 
-/** 由宿主注入的抽屉拖动能力：播放页内部各块不必知道抽屉怎么动。 */
-@Stable
-class PlayerSheetDrag(
-    val onDrag: (deltaY: Float) -> Unit,
-    val onEnd: (velocityY: Float) -> Unit,
-)
-
-val LocalPlayerSheetDrag = staticCompositionLocalOf<PlayerSheetDrag?> { null }
-
 @Composable
 fun PlayerSheetOverlay(
     state: PlayerSheetState,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    if (!state.isMounted) return
-
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val heightPx = constraints.maxHeight.toFloat()
         SideEffect { state.heightPx = heightPx }
 
         val scope = rememberCoroutineScope()
         val progress = state.progress
-        val travel = state.travelPx
+        val bottomBarPx = state.bottomBarHeightPx
 
         Box(
             modifier = Modifier
@@ -237,20 +216,28 @@ fun PlayerSheetOverlay(
                 // 整块平移：面板底部随之浮出屏幕，顶边跟着手指走，全程不变形。
                 // 顶部圆角与投影只在「浮起来」时出现，贴满屏幕时收敛到底。
                 .graphicsLayer {
-                    translationY = sheetOffsetAt(progress, travel)
-                    alpha = sheetAlphaAt(progress)
+                    translationY = sheetOffsetAt(progress, state.travelPx)
                     val radius = SheetCornerRadius.toPx() * progress
                     shape = RoundedCornerShape(radius)
                     clip = true
                     shadowElevation = SheetShadow.toPx() * progress
                 }
+                // 拖动手势挂在面板根上：内容怎么淡入淡出都不会打断这次拖动
+                .draggable(
+                    state = rememberDraggableState { delta ->
+                        state.cancelMotion()
+                        state.dragBy(delta)
+                    },
+                    orientation = Orientation.Vertical,
+                    onDragStopped = { velocity -> state.settle(scope, velocity) },
+                )
                 .nestedScroll(
                     remember(state, scope) { sheetNestedScroll(state, scope) },
                 )
                 // 只观察、不消费：手指离开屏幕时，如果抽屉停在半路就把它结算掉。
                 // 子级（歌词列表）拖到边界后交上来的位移走 nestedScroll，
                 // 松手时它未必会跑惯性，所以这里补一个「手抬起」的判据。
-                .pointerInput(state, scope) {
+                .pointerInput(state, scope, bottomBarPx) {
                     awaitPointerEventScope {
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Final)

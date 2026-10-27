@@ -66,9 +66,7 @@ import androidx.navigation.navArgument
 import com.melody.player.data.AppSettings
 import com.melody.player.data.SettingsRepository
 import com.melody.player.playback.PlayerManager
-import com.melody.player.ui.components.LocalPlayerSheetDrag
 import com.melody.player.ui.components.MiniPlayer
-import com.melody.player.ui.components.PlayerSheetDrag
 import com.melody.player.ui.components.PlayerSheetOverlay
 import com.melody.player.ui.components.rememberPlayerSheetState
 import com.melody.player.ui.screens.AlbumDetailScreen
@@ -80,6 +78,15 @@ import com.melody.player.ui.screens.SettingsScreen
 import com.melody.player.ui.screens.SongsScreen
 import com.melody.player.util.AudioPermission
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.graphicsLayer
+import com.melody.player.ui.components.MiniPlayerHeight
+import com.melody.player.ui.theme.rememberRetroColors
+import com.melody.player.playback.PlayerUiState
+import com.melody.player.ui.components.PlayerSheetState
+import com.melody.player.ui.components.miniAlphaAt
+import com.melody.player.ui.components.playerAlphaAt
 
 private object Routes {
     const val SONGS = "songs"
@@ -159,15 +166,9 @@ fun AppRoot(settings: AppSettings) {
     // 播放页不再是一个导航目的地，而是盖在主界面上的抽屉 ——
     // 这样下滑收起时下面的歌曲列表仍然在，才能做出「缩回迷你播放器」的连贯动画
     val sheetState = rememberPlayerSheetState()
-    val sheetDrag = remember(sheetState, scope) {
-        PlayerSheetDrag(
-            onDrag = { deltaY -> sheetState.dragBy(deltaY) },
-            onEnd = { velocity -> sheetState.settle(scope, velocity) },
-        )
-    }
 
     // 播放页展开时，系统返回键先收起它
-    BackHandler(enabled = sheetState.isMounted) { sheetState.collapse(scope) }
+    BackHandler(enabled = sheetState.isOpen) { sheetState.collapse(scope) }
 
     fun navigateTab(route: String) {
         navController.navigate(route) {
@@ -185,7 +186,6 @@ fun AppRoot(settings: AppSettings) {
         LocalShowTrackInfo provides settings.showTrackInfo,
         LocalLyricFontScale provides settings.lyricFontScale,
         LocalLyricSpacing provides settings.lyricSpacing,
-        LocalPlayerSheetDrag provides sheetDrag,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val wide = maxWidth >= 720.dp
@@ -210,21 +210,13 @@ fun AppRoot(settings: AppSettings) {
                     contentWindowInsets = NoInsets,
                     bottomBar = {
                         if (showBars) {
-                            // 量出底部栏高度：播放页收起时就缩到这么高，
-                            // 也就是「缩成迷你播放器」，而不是滑出屏幕
-                            Box(
-                                modifier = Modifier.onGloballyPositioned { coordinates ->
-                                    val measured = coordinates.size.height.toFloat()
-                                    if (measured > 0f) sheetState.bottomBarHeightPx = measured
-                                },
-                            ) {
-                                BottomArea(
-                                    wide = wide,
-                                    selectedRoute = currentRoute,
-                                    onNavigate = ::navigateTab,
-                                    onExpandPlayer = { sheetState.expand(scope) },
-                                )
-                            }
+                            // 只做高度占位：迷你播放器跟着面板走，导航栏画在最上层，
+                            // 这里量出来的高度就是抽屉收起时面板顶边要落到的位置
+                            BottomBarPlaceholder(
+                                wide = wide,
+                                hasMiniPlayer = playerState.current != null,
+                                onMeasured = { measured -> sheetState.bottomBarHeightPx = measured },
+                            )
                         }
                     },
                 ) { padding ->
@@ -335,45 +327,129 @@ fun AppRoot(settings: AppSettings) {
                 }
             }
 
-            // 播放页抽屉：盖在导航栏与迷你播放器之上，靠 progress 上下滑
+            // 播放页抽屉：面板自带背景，迷你播放器是面板顶部的一条，跟着面板一起上下走
             PlayerSheetOverlay(state = sheetState) {
-                NowPlayingScreen(onBack = { sheetState.collapse(scope) })
+                PlayerSheetContent(
+                    state = sheetState,
+                    playerState = playerState,
+                    actions = actions,
+                    albumId = playerState.current?.albumId ?: 0L,
+                    onCollapse = { sheetState.collapse(scope) },
+                    onExpand = { sheetState.expand(scope) },
+                )
+            }
+
+            // 底部导航栏画在面板之上（与上游同一套 z 序），展开时淡出并滑出屏幕
+            if (showBars && !wide) {
+                BottomNavigationBar(
+                    selectedRoute = currentRoute,
+                    onNavigate = ::navigateTab,
+                    progress = sheetState.progress,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }
 }
 
+/**
+ * 面板内部：整块渐变底 + 播放页 + 顶部的迷你播放器。
+ *
+ * 迷你播放器在**面板顶部**（上游 `sliding_music_panel_layout.xml` 里就是这个结构），
+ * 所以它会跟着面板一起上下走，而不是钉在底栏里不动。
+ */
 @Composable
-private fun BottomArea(
-    wide: Boolean,
-    selectedRoute: String?,
-    onNavigate: (String) -> Unit,
-    onExpandPlayer: () -> Unit,
+private fun PlayerSheetContent(
+    state: PlayerSheetState,
+    playerState: PlayerUiState,
+    actions: PlayerActions,
+    albumId: Long,
+    onCollapse: () -> Unit,
+    onExpand: () -> Unit,
 ) {
-    val playerState = LocalPlayerState.current
-    val actions = LocalPlayerActions.current
+    val retro = rememberRetroColors(albumId)
+    val background = Brush.verticalGradient(
+        colorStops = arrayOf(
+            0f to retro.gradientTop,
+            0.42f to retro.gradientMiddle,
+            1f to retro.gradientBottom,
+        ),
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(background),
+    ) {
+        // 播放页常驻，只改透明度：卸载会丢掉歌词位置和 pager 页，
+        // 而且它在迷你播放器下面，不会挡住迷你播放器的点击
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = playerAlphaAt(state.progress) },
+        ) {
+            NowPlayingScreen(onBack = onCollapse)
+        }
 
-    Column {
-        if (playerState.current != null) {
+        // 迷你播放器完全淡出后卸载（等价上游的 isGone），
+        // 否则它透明仍会盖在播放页顶栏上吞掉点击
+        val miniAlpha = miniAlphaAt(state.progress)
+        if (miniAlpha > 0.001f) {
             MiniPlayer(
                 state = playerState,
                 actions = actions,
-                onExpand = onExpandPlayer,
+                onExpand = onExpand,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .graphicsLayer { alpha = miniAlpha },
             )
         }
-        if (wide) {
-            Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
-        } else {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
-                tabs.forEach { tab ->
-                    NavigationBarItem(
-                        selected = selectedRoute == tab.route,
-                        onClick = { onNavigate(tab.route) },
-                        icon = { Icon(tab.icon, contentDescription = null) },
-                        label = { Text(tab.label) },
-                    )
-                }
-            }
+    }
+}
+
+/** M3 `NavigationBar` 的容器高度（不含系统导航栏 inset），占位要与它对齐。 */
+private val NavigationBarHeight = 80.dp
+
+@Composable
+private fun BottomBarPlaceholder(
+    wide: Boolean,
+    hasMiniPlayer: Boolean,
+    onMeasured: (Float) -> Unit,
+) {
+    Column(
+        modifier = Modifier.onGloballyPositioned { coordinates ->
+            val measured = coordinates.size.height.toFloat()
+            if (measured > 0f) onMeasured(measured)
+        },
+    ) {
+        if (hasMiniPlayer) Spacer(modifier = Modifier.height(MiniPlayerHeight))
+        if (!wide) Spacer(modifier = Modifier.height(NavigationBarHeight))
+        Spacer(modifier = Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
+    }
+}
+
+@Composable
+private fun BottomNavigationBar(
+    selectedRoute: String?,
+    onNavigate: (String) -> Unit,
+    progress: Float,
+    modifier: Modifier = Modifier,
+) {
+    // 与迷你播放器同步浮现：收起时完整显示，展开后淡出并整条滑出屏幕
+    val alpha = miniAlphaAt(progress)
+    NavigationBar(
+        modifier = modifier.graphicsLayer {
+            this.alpha = alpha
+            translationY = size.height * (1f - alpha)
+        },
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        tabs.forEach { tab ->
+            NavigationBarItem(
+                selected = selectedRoute == tab.route,
+                onClick = { onNavigate(tab.route) },
+                icon = { Icon(tab.icon, contentDescription = null) },
+                label = { Text(tab.label) },
+            )
         }
     }
 }

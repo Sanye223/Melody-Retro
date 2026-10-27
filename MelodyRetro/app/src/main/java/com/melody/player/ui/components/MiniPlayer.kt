@@ -4,15 +4,12 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -40,8 +37,17 @@ import com.melody.player.ui.PlayerActions
 import com.melody.player.ui.theme.rememberRetroColors
 
 /**
+ * 迷你播放器的高度。抽屉收起时面板退到「底部栏顶边」，面板顶部这一条正好是这么高 ——
+ * 两处必须用同一个值，否则收起后会和底栏错开几个像素。
+ */
+val MiniPlayerHeight = 56.dp
+
+/**
  * 底部迷你播放器（Retro 风格）：整条用封面主色铺底，无卡片留白、无圆角，
- * 布局为「封面 40dp + 单行歌名 + 上一曲 / 播放暂停 / 下一曲」，高度 56dp。
+ * 布局为「封面 40dp + 单行歌名 + 上一曲 / 播放暂停 / 下一曲」。
+ *
+ * 它在 RetroMusicPlayer 里是**播放页面板顶部的一条**，跟着面板一起上下走；
+ * 上下滑手势由宿主的面板统一接管，这里只负责被点击时展开。
  */
 @Composable
 fun MiniPlayer(
@@ -69,39 +75,17 @@ fun MiniPlayer(
         0f
     }
     val interaction = remember { MutableInteractionSource() }
-    // 上滑是展开播放页的手势：位移直接喂给抽屉，手指走到哪，面板就推到哪
-    val sheetDrag = LocalPlayerSheetDrag.current
-    val dragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta) }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
+            .height(MiniPlayerHeight)
             .background(background)
-            .clickable(interactionSource = interaction, indication = null, onClick = onExpand)
-            .draggable(
-                state = dragState,
-                orientation = Orientation.Vertical,
-                onDragStopped = { velocity -> sheetDrag?.onEnd(velocity) },
-            ),
+            .clickable(interactionSource = interaction, indication = null, onClick = onExpand),
     ) {
-        // 顶部极细进度：Retro 本身没有，保留它让进度一眼可见，且基本不占高度
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.5.dp)
-                .background(foreground.copy(alpha = 0.16f)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .fillMaxHeight()
-                    .background(colors.accent),
-            )
-        }
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
+                .fillMaxSize()
                 .padding(start = 8.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -148,6 +132,23 @@ fun MiniPlayer(
                     modifier = Modifier.size(22.dp),
                 )
             }
+        }
+
+        // 顶部极细进度：Retro 本身没有，保留它让进度一眼可见。
+        // 叠在内容上而不是占位，整条高度才是精确的 MiniPlayerHeight。
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(1.5.dp)
+                .background(foreground.copy(alpha = 0.16f)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(progress)
+                    .fillMaxHeight()
+                    .background(colors.accent),
+            )
         }
     }
 }

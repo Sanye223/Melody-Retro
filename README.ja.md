@@ -13,7 +13,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.5.0--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.5.1--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-113%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -66,9 +66,9 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
    遠い行は薄くなり、少しぼけます。拡縮はすべて `graphicsLayer` だけなのでレイアウトは
    再計算されず、リストが飛ぶこともありません。
 4. **上下はスワイプ一発。** プレイヤーを下にスワイプすれば畳まれ、ミニプレイヤーを上に
-   スワイプすれば開きます。パネルごと平行移動するだけで、拡大も変形もしません。上端は指に
-   そのまま追従し、最後はミニプレイヤーとクロスフェード。離した位置と速度で行き先が決まり、
-   再生は止まりません。
+   スワイプすれば開きます。ミニプレイヤーは**パネルの天板**なので、パネルごと平行移動すると
+   指と一緒に上へ流れてフェードアウトします。拡大も変形もしません。離した位置と速度で
+   行き先が決まり、再生は止まりません。
 
 ## 機能
 
@@ -155,7 +155,7 @@ cd MelodyRetro
 実機へ（初回起動時に音声の権限を許可してください）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.5.0-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.5.1-release.apk
 ```
 
 > 注意：release ビルドは**わざと debug キーストアで署名**しています。すぐ入れて触れるようにするためです。
@@ -280,6 +280,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 15 · 2.5.0-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 16 · 2.5.1-retro</sub>
 
 </div>
