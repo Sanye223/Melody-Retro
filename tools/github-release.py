@@ -13,17 +13,20 @@ import subprocess
 import urllib.request
 
 REPO = "Sanye223/Melody-Retro"
-TAG = "v2.6.1"
-NAME = "Melody Retro 2.6.1"
-APK = "MelodyRetro/dist/Melody-Retro-2.6.1-release.apk"
+TAG = "v2.11.0"
+NAME = "Melody Retro 2.11.0"
+APK = "MelodyRetro/dist/Melody-Retro-2.11.0-release.apk"
 
 BODY = """纯本地 Android 音乐播放器，视觉语言参考 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer)，以 **GPL-3.0** 开源。
 
-## 这个版本做了什么
+## 这个版本做了什么（2.7.0 → 2.11.0）
 
-- **歌曲页**：顶栏常驻（滚动只把大标题压成小标题，不会滑走），搜索按钮固定在右上角，点开在标题下方展开 MD3 填充式搜索栏
-- **播放页**：抽屉整块 `translationY` 平移，对齐上游的 `BottomSheetBehavior`；迷你播放器长在面板顶部，跟着手指一起上移、淡出，不再是钉在底栏里不动的独立控件
-- **修复**：抽屉收起位置算错（底栏高度未测量时退化成整屏），导致整块面板连同迷你播放器被推出屏幕
+- **For you 首页**（对齐上游）：最近播放歌手的横幅与问候语、历史播放 / 最近添加 / 我的最爱 / 随机播放四个入口、「新音乐混音」八格拼贴、最多播放与最近播放的专辑 / 艺术家分组，全部点击进入对应列表
+- **收藏（我的最爱）**：播放页顶栏与迷你播放器的心形收藏，收藏列表显示每首的播放次数
+- **播放历史与次数分离**：点开播放立即进历史；播放满 30 秒才计一次数，秒切试听不刷次数；历史页右上角菜单可切「最近播放排序 / 播放次数排序」
+- **个人资料**：自定义 For you 横幅图与昵称
+- **UI 系统化**：圆角梯度（缩略图 12 / 卡片 16 / 大图 24）、迷你播放器顶边分界线、专辑与艺术家页补刷新入口、歌词来源标轻量化
+- **修复**：二级页返回后不能立刻触控（导航转场从 700ms 压到 180ms）
 
 ## 主要特性
 
@@ -35,7 +38,7 @@ BODY = """纯本地 Android 音乐播放器，视觉语言参考 [RetroMusicPlay
 
 ## 安装
 
-1. 下载下面的 `Melody-Retro-2.6.1-release.apk`
+1. 下载下面的 `Melody-Retro-2.11.0-release.apk`
 2. 直接安装（**debug keystore 签名**，方便体验，不用于上架）
 3. 首次启动授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）
 
@@ -49,6 +52,7 @@ BODY = """纯本地 Android 音乐播放器，视觉语言参考 [RetroMusicPlay
 
 设计规范与交互参考 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer)（GPL-3.0），歌词动效参考 [Kifranei/Halcyon](https://github.com/Kifranei/Halcyone)（Apache-2.0）。
 """
+
 
 
 def token() -> str:
