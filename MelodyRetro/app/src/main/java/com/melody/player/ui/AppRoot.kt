@@ -88,8 +88,12 @@ import com.melody.player.ui.components.PlayerSheetState
 import com.melody.player.ui.components.miniAlphaAt
 import com.melody.player.ui.components.playerAlphaAt
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.material.icons.rounded.Home
+import com.melody.player.data.PlayStatsRepository
+import com.melody.player.ui.screens.ForYouScreen
 
 private object Routes {
+    const val HOME = "home"
     const val SONGS = "songs"
     const val ALBUMS = "albums"
     const val ARTISTS = "artists"
@@ -106,6 +110,7 @@ private object Routes {
 private data class TabItem(val route: String, val label: String, val icon: ImageVector)
 
 private val tabs = listOf(
+    TabItem(Routes.HOME, "For you", Icons.Rounded.Home),
     TabItem(Routes.SONGS, "歌曲", Icons.Rounded.LibraryMusic),
     TabItem(Routes.ALBUMS, "专辑", Icons.Rounded.Album),
     TabItem(Routes.ARTISTS, "艺术家", Icons.Rounded.Person),
@@ -247,9 +252,22 @@ fun AppRoot(settings: AppSettings) {
                     } else {
                         NavHost(
                             navController = navController,
-                            startDestination = Routes.SONGS,
+                            startDestination = Routes.HOME,
                             modifier = Modifier.padding(padding),
                         ) {
+                            composable(Routes.HOME) {
+                                val playStats by remember {
+                                    PlayStatsRepository.stats(context)
+                                }.collectAsStateWithLifecycle(initialValue = emptyMap())
+                                ForYouScreen(
+                                    state = library,
+                                    stats = playStats,
+                                    actions = actions,
+                                    onOpenAlbum = { id -> navController.navigate(Routes.album(id)) },
+                                    onOpenArtist = { id -> navController.navigate(Routes.artist(id)) },
+                                )
+                            }
+
                             composable(Routes.SONGS) {
                                 SongsScreen(
                                     state = library,

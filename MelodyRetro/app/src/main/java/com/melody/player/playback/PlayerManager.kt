@@ -11,6 +11,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
+import com.melody.player.data.PlayStatsRepository
 import com.melody.player.data.model.Track
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -94,6 +95,9 @@ object PlayerManager {
     /** mediaId -> Track，用于在 MediaSession 往返后仍然取到专辑/文件路径等附加信息。 */
     private val knownTracks = HashMap<String, Track>()
 
+    /** 上一次已经记入播放统计的曲目，避免同一首反复触发。 */
+    private var lastRecordedTrackId = 0L
+
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
@@ -175,6 +179,19 @@ object PlayerManager {
         }
         val duration = player.duration
         val metaDuration = metadata?.durationMs ?: fallback?.durationMs ?: 0L
+
+        // 播放统计：只在「换了一首且真的在播」时记一次，
+        // sync 会被位置 / 状态频繁触发，不做去重会把次数刷上天
+        if (current != null && player.isPlaying && current.id != lastRecordedTrackId) {
+            lastRecordedTrackId = current.id
+            if (::appContext.isInitialized) {
+                val id = current.id
+                val ctx = appContext
+                scope.launch { PlayStatsRepository.recordPlay(ctx, id) }
+            }
+        } else if (current == null) {
+            lastRecordedTrackId = 0L
+        }
 
         _state.update {
             it.copy(
