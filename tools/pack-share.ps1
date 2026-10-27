@@ -1,7 +1,8 @@
 # =============================================================================
 #  Build a slim, transferable ZIP of the whole project.
 #
-#  Includes : MelodyRetro/ source, HANDOFF.md, tools/, the release APK
+#  Includes : MelodyRetro/ source, HANDOFF.md, README.md / .en.md / .ja.md,
+#             LICENSE, tools/, the release APK
 #  Excludes : build/ .gradle/ .kotlin/ dist/ local.properties .buildtools/
 #             .refs/ backup/  (all machine-specific or regenerable)
 #
@@ -37,8 +38,13 @@ foreach ($proj in @('MelodyRetro')) {
 }
 
 # hand-off docs + bootstrap script
-Copy-Item (Join-Path $root 'HANDOFF.md') $staging
-Copy-Item (Join-Path $root '.gitignore') $staging -Force
+# README.* and LICENSE live at the repo root too — a package without them
+# looks like an orphaned source dump
+foreach ($doc in @('HANDOFF.md', '.gitignore', 'LICENSE',
+                   'README.md', 'README.en.md', 'README.ja.md')) {
+    $p = Join-Path $root $doc
+    if (Test-Path $p) { Copy-Item $p $staging -Force } else { Write-Host "WARN: missing doc (skip): $doc" }
+}
 New-Item -ItemType Directory -Force -Path (Join-Path $staging 'tools') | Out-Null
 Copy-Item (Join-Path $PSScriptRoot 'setup-buildtools.ps1') (Join-Path $staging 'tools')
 Copy-Item (Join-Path $PSScriptRoot 'pack-share.ps1')        (Join-Path $staging 'tools')
