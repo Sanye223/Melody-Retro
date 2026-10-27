@@ -53,6 +53,7 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -60,6 +61,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -225,57 +227,62 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                 ),
             ),
     ) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            contentWindowInsets = NoInsets,
-            topBar = {
-                CenterAlignedTopAppBar(
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Transparent,
-                    ),
-                    navigationIcon = {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起")
+        // 播放页背景是自绘渐变、不是 Material 的 Surface，不会自动派生出内容色。
+        // 不显式提供的话，没写 color/tint 的 Text、Icon 会落到 LocalContentColor 的默认值
+        // （纯黑）：浅色渐变上勉强能看，深色渐变上就是「黑字糊在深色底上」完全看不见。
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+            Scaffold(
+                containerColor = Color.Transparent,
+                contentWindowInsets = NoInsets,
+                topBar = {
+                    CenterAlignedTopAppBar(
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = Color.Transparent,
+                        ),
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起")
+                            }
+                        },
+                        title = {
+                            Column(horizontalAlignment = Alignment.Start) {
+                                Text(
+                                    text = current.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = current.artist.ifBlank { current.album },
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        },
+                    )
+                },
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize(),
+                ) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.weight(1f),
+                    ) { page ->
+                        if (page == 0) {
+                            ArtworkPage(current)
+                        } else {
+                            LyricsPage(state, accent = retro.accent)
                         }
-                    },
-                    title = {
-                        Column(horizontalAlignment = Alignment.Start) {
-                            Text(
-                                text = current.title,
-                                style = MaterialTheme.typography.titleMedium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Text(
-                                text = current.artist.ifBlank { current.album },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    },
-                )
-            },
-        ) { padding ->
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize(),
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.weight(1f),
-                ) { page ->
-                    if (page == 0) {
-                        ArtworkPage(current)
-                    } else {
-                        LyricsPage(state, accent = retro.accent)
                     }
+                    PageDots(count = 2, current = pagerState.currentPage, accent = retro.accent)
+                    SeekBar(state = state, actions = actions, colors = retro)
+                    TransportControls(state = state, actions = actions, colors = retro)
                 }
-                PageDots(count = 2, current = pagerState.currentPage, accent = retro.accent)
-                SeekBar(state = state, actions = actions, colors = retro)
-                TransportControls(state = state, actions = actions, colors = retro)
             }
         }
     }

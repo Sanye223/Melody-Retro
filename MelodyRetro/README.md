@@ -4,7 +4,7 @@
 **视觉层完全按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做**：
 配色由当前歌曲封面决定、整屏竖向渐变、通栏迷你播放器、紧凑网格。
 
-- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.6.1-retro**，目录 `MelodyRetro/`
+- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.6.2-retro**，目录 `MelodyRetro/`
 - 最低支持 **Android 7.0（API 24）**，目标 **Android 15（API 35）**
 - 这是项目当前**唯一**的版本。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`）
   已于 2026-10-27 彻底移除（代码、git 历史、本机备份、手机安装包全部清除），
