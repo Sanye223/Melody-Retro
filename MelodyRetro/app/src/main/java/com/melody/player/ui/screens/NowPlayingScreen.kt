@@ -133,6 +133,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlin.math.abs
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import com.melody.player.ui.LocalFavoriteIds
+import com.melody.player.ui.LocalToggleFavorite
 
 /** 点击歌词行后点亮保持的时长，之后恢复原状。 */
 private const val FLASH_DURATION_MS = 420L
@@ -243,6 +247,21 @@ fun NowPlayingScreen(onBack: () -> Unit) {
                         navigationIcon = {
                             IconButton(onClick = onBack) {
                                 Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起")
+                            }
+                        },
+                        actions = {
+                            // 收藏当前歌（Retro 播放页同样位置有一颗心）
+                            val favIds = LocalFavoriteIds.current
+                            val toggle = LocalToggleFavorite.current
+                            val fav = current.id in favIds
+                            IconButton(onClick = { toggle(current.id) }) {
+                                Icon(
+                                    imageVector = if (fav) Icons.Rounded.Favorite
+                                    else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = if (fav) "取消收藏" else "收藏",
+                                    tint = if (fav) MaterialTheme.colorScheme.primary
+                                    else LocalContentColor.current,
+                                )
                             }
                         },
                         title = {

@@ -23,8 +23,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.melody.player.data.model.Track
 import com.melody.player.util.formatDuration
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material3.IconButton
 
-/** 歌曲列表行：封面 + 标题 + 艺术家 · 专辑 + 时长。 */
+/** 歌曲列表行：封面 + 标题 + 艺术家 · 专辑 + 时长（可选收藏心形）。 */
 @Composable
 fun SongRow(
     track: Track,
@@ -33,6 +36,8 @@ fun SongRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     showAlbum: Boolean = true,
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
 ) {
     Row(
         modifier = modifier
@@ -73,6 +78,18 @@ fun SongRow(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp),
             )
+        }
+        if (onToggleFavorite != null) {
+            IconButton(onClick = onToggleFavorite, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = if (isFavorite) Icons.Rounded.Favorite
+                    else Icons.Rounded.FavoriteBorder,
+                    contentDescription = if (isFavorite) "取消收藏" else "收藏",
+                    tint = if (isFavorite) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
         Spacer(modifier = Modifier.width(2.dp))
         Text(

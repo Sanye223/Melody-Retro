@@ -83,9 +83,14 @@ import com.melody.player.ui.theme.rememberRetroColors
 fun ForYouScreen(
     state: LibraryUiState,
     stats: Map<Long, PlayStat>,
+    favorites: Set<Long>,
+    userName: String,
+    bannerUri: String?,
     actions: PlayerActions,
     onOpenAlbum: (Long) -> Unit,
     onOpenArtist: (Long) -> Unit,
+    onOpenList: (String) -> Unit,
+    onOpenUserInfo: () -> Unit,
 ) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
 
@@ -107,6 +112,18 @@ fun ForYouScreen(
     }
     val recentAdded = remember(state.tracks) {
         state.tracks.sortedByDescending { it.dateAdded }
+    }
+    val favoriteTracks = remember(state.tracks, favorites) {
+        state.tracks.filter { it.id in favorites }
+    }
+    val sections = remember(state.tracks, state.albums, state.artists, stats, favoriteTracks) {
+        buildHomeSections(state, stats) + listOf(
+            HomeSectionData(
+                title = "我的最爱",
+                ListType.FAVORITES,
+                songs = favoriteTracks,
+            ),
+        )
     }
 
     Scaffold(
@@ -155,7 +172,12 @@ fun ForYouScreen(
                         ?: state.tracks.first()
                     HomeBanner(
                         track = bannerTrack,
-                        modifier = Modifier.padding(horizontal = 16.dp),
+                        userName = userName,
+                        bannerUri = bannerUri,
+                        onOpenUserInfo = onOpenUserInfo,
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp)
+                            .clickable(onClick = onOpenUserInfo),
                     )
                 }
 
@@ -163,11 +185,10 @@ fun ForYouScreen(
                 item {
                     HomeButtons(
                         hasHistory = recentTracks.isNotEmpty(),
-                        history = recentTracks,
                         lastAdded = recentAdded,
-                        topTracks = topTracks,
                         all = state.tracks,
                         actions = actions,
+                        onOpenList = onOpenList,
                         modifier = Modifier.padding(
                             horizontal = 16.dp,
                         ),
@@ -204,15 +225,23 @@ fun ForYouScreen(
                 }
 
                 // ---------------------------------------------------------- 分组
-                val sections = buildHomeSections(state, stats)
-                sections.forEach { section ->
+                sections
+                    .filter { it.songs.isNotEmpty() || it.albums.isNotEmpty() || it.artists.isNotEmpty() }
+                    .forEach { section ->
                     item(key = section.title) {
-                        SectionHeader(title = section.title)
+                        SectionHeader(title = section.title, onMore = { onOpenList(section.listType) })
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            if (section.albums.isNotEmpty()) {
+                            if (section.songs.isNotEmpty()) {
+                                items(section.songs, key = { "s${section.title}${it.id}" }) { track ->
+                                    SongMiniCard(
+                                        track = track,
+                                        onClick = { actions.playQueue(section.songs, section.songs.indexOf(track)) },
+                                    )
+                                }
+                            } else if (section.albums.isNotEmpty()) {
                                 items(section.albums, key = { "a${section.title}${it.id}" }) { album ->
                                     AlbumMiniCard(
                                         album = album,
@@ -239,8 +268,12 @@ fun ForYouScreen(
 /** 分区数据：一个分组要么是专辑列表，要么是艺术家列表（上游两者都不会同时给）。 */
 internal data class HomeSectionData(
     val title: String,
+    /** 点分组标题要打开的列表类型（ListType）。 */
+    val listType: String,
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
+    /** 收藏歌单这类「直接是歌曲」的分组。 */
+    val songs: List<Track> = emptyList(),
 )
 
 internal fun buildHomeSections(state: LibraryUiState, stats: Map<Long, PlayStat>): List<HomeSectionData> {
@@ -266,16 +299,22 @@ internal fun buildHomeSections(state: LibraryUiState, stats: Map<Long, PlayStat>
         .sortedByDescending { scoreOf(it.tracks) { s -> s.lastPlayedAt } }
         .take(10)
 
-    if (topArtists.isNotEmpty()) out += HomeSectionData("最多播放的艺术家", artists = topArtists)
-    if (topAlbums.isNotEmpty()) out += HomeSectionData("最多播放的专辑", albums = topAlbums)
-    if (recentArtists.isNotEmpty()) out += HomeSectionData("最近播放的艺术家", artists = recentArtists)
-    if (recentAlbums.isNotEmpty()) out += HomeSectionData("最近播放的专辑", albums = recentAlbums)
+    if (topArtists.isNotEmpty()) out += HomeSectionData("最多播放的艺术家", ListType.TOP_ARTISTS, artists = topArtists)
+    if (topAlbums.isNotEmpty()) out += HomeSectionData("最多播放的专辑", ListType.TOP_ALBUMS, albums = topAlbums)
+    if (recentArtists.isNotEmpty()) out += HomeSectionData("最近播放的艺术家", ListType.RECENT_ARTISTS, artists = recentArtists)
+    if (recentAlbums.isNotEmpty()) out += HomeSectionData("最近播放的专辑", ListType.RECENT_ALBUMS, albums = recentAlbums)
     return out
 }
 
 /** 顶部横幅：用最近播放专辑的主色铺底，圆形头像显示首字母，附问候语。 */
 @Composable
-private fun HomeBanner(track: Track, modifier: Modifier = Modifier) {
+private fun HomeBanner(
+    track: Track,
+    userName: String,
+    bannerUri: String?,
+    onOpenUserInfo: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val retro = rememberRetroColors(track.albumId)
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val greeting = when (hour) {
@@ -283,17 +322,47 @@ private fun HomeBanner(track: Track, modifier: Modifier = Modifier) {
         in 12..17 -> "下午好"
         else -> "晚上好"
     }
+    val display = userName.trim().ifBlank { track.artist.ifBlank { "Melody Retro" } }
+    val initial = userName.trim().firstOrNull()?.toString()
+        ?: track.artist.trim().firstOrNull()?.toString() ?: "M"
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(168.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                Brush.verticalGradient(
-                    listOf(retro.gradientTop, retro.accent.copy(alpha = 0.72f)),
-                ),
-            ),
+            .clip(RoundedCornerShape(24.dp)),
     ) {
+        if (bannerUri != null) {
+            // 用户自设的横幅图（个人资料页里选的），盖满整块
+            coil.compose.AsyncImage(
+                model = bannerUri,
+                contentDescription = "横幅图",
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+            // 压一层暗色渐变，保证文字可读
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(
+                                androidx.compose.ui.graphics.Color.Transparent,
+                                androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.45f),
+                            ),
+                        ),
+                    ),
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(retro.gradientTop, retro.accent.copy(alpha = 0.72f)),
+                        ),
+                    ),
+            )
+        }
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -302,18 +371,18 @@ private fun HomeBanner(track: Track, modifier: Modifier = Modifier) {
             Text(
                 text = greeting,
                 style = MaterialTheme.typography.titleMedium,
-                color = retro.onAccent.copy(alpha = 0.85f),
+                color = (if (bannerUri != null) androidx.compose.ui.graphics.Color.White else retro.onAccent)
+                    .copy(alpha = 0.85f),
             )
             Text(
-                text = track.artist.ifBlank { "Melody Retro" },
+                text = display,
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
-                color = retro.onAccent,
+                color = if (bannerUri != null) androidx.compose.ui.graphics.Color.White else retro.onAccent,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        // 头像：上游是用户设置的头像，这里用歌手首字母占位
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -324,7 +393,7 @@ private fun HomeBanner(track: Track, modifier: Modifier = Modifier) {
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = track.artist.trim().firstOrNull()?.toString() ?: "M",
+                text = initial,
                 style = MaterialTheme.typography.titleLarge,
                 color = retro.onAccent,
                 fontWeight = FontWeight.Bold,
@@ -337,11 +406,10 @@ private fun HomeBanner(track: Track, modifier: Modifier = Modifier) {
 @Composable
 private fun HomeButtons(
     hasHistory: Boolean,
-    history: List<Track>,
     lastAdded: List<Track>,
-    topTracks: List<Track>,
     all: List<Track>,
     actions: PlayerActions,
+    onOpenList: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = ButtonDefaults.buttonColors(
@@ -355,7 +423,7 @@ private fun HomeButtons(
                 icon = Icons.Rounded.History,
                 colors = colors,
                 enabled = hasHistory,
-                onClick = { actions.playQueue(history, 0) },
+                onClick = { onOpenList(ListType.HISTORY) },
                 modifier = Modifier.weight(1f),
             )
             ActionButton(
@@ -363,7 +431,7 @@ private fun HomeButtons(
                 icon = Icons.Rounded.LibraryAdd,
                 colors = colors,
                 enabled = lastAdded.isNotEmpty(),
-                onClick = { actions.playQueue(lastAdded, 0) },
+                onClick = { onOpenList(ListType.LAST_ADDED) },
                 modifier = Modifier.weight(1f),
             )
         }
@@ -372,8 +440,8 @@ private fun HomeButtons(
                 text = "我的最爱",
                 icon = Icons.Rounded.TrendingUp,
                 colors = colors,
-                enabled = topTracks.isNotEmpty(),
-                onClick = { actions.playQueue(topTracks, 0) },
+                enabled = true,
+                onClick = { onOpenList(ListType.FAVORITES) },
                 modifier = Modifier.weight(1f),
             )
             ActionButton(
@@ -462,7 +530,7 @@ private fun SuggestionGrid(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
+private fun SectionHeader(title: String, onMore: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -477,8 +545,12 @@ private fun SectionHeader(title: String) {
         )
         Icon(
             imageVector = Icons.Rounded.ArrowForward,
-            contentDescription = null,
+            contentDescription = "查看全部",
             tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .clip(CircleShape)
+                .clickable { onMore?.invoke() }
+                .padding(6.dp),
         )
     }
 }
@@ -548,6 +620,41 @@ private fun ArtistMiniCard(artist: Artist, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+
+@Composable
+private fun SongMiniCard(track: Track, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .width(120.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(2.dp),
+    ) {
+        AlbumArt(
+            albumId = track.albumId,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f),
+            shape = RoundedCornerShape(12.dp),
+            iconFraction = 0.28f,
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = track.title,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = track.artist,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

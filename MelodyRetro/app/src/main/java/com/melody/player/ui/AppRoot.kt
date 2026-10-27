@@ -91,10 +91,22 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.rounded.Home
 import com.melody.player.data.PlayStatsRepository
 import com.melody.player.ui.screens.ForYouScreen
+import com.melody.player.data.FavoriteRepository
+import com.melody.player.ui.screens.TrackListScreen
+import com.melody.player.data.ProfileRepository
+import com.melody.player.data.UserProfile
+import com.melody.player.ui.screens.UserInfoScreen
 
 private object Routes {
     const val HOME = "home"
     const val SONGS = "songs"
+    const val LIST_ARG = "type"
+    const val LIST = "list/{$LIST_ARG}"
+
+    const val USER_INFO = "user_info"
+
+    fun list(type: String) = "list/$type"
+
     const val ALBUMS = "albums"
     const val ARTISTS = "artists"
     const val SETTINGS = "settings"
@@ -122,6 +134,15 @@ fun AppRoot(settings: AppSettings) {
     val libraryViewModel: LibraryViewModel = viewModel()
     val library by libraryViewModel.state.collectAsStateWithLifecycle()
     val playerState by PlayerManager.state.collectAsStateWithLifecycle()
+    val favoriteIds by remember {
+        FavoriteRepository.ids(context)
+    }.collectAsStateWithLifecycle(initialValue = emptySet<Long>())
+    val playStats by remember {
+        PlayStatsRepository.stats(context)
+    }.collectAsStateWithLifecycle(initialValue = emptyMap())
+    val userProfile by remember {
+        ProfileRepository.profile(context)
+    }.collectAsStateWithLifecycle(initialValue = UserProfile())
     val scope = rememberCoroutineScope()
 
     var hasPermission by remember { mutableStateOf(AudioPermission.isGranted(context)) }
@@ -187,6 +208,10 @@ fun AppRoot(settings: AppSettings) {
     CompositionLocalProvider(
         LocalPlayerState provides playerState,
         LocalPlayerActions provides actions,
+        LocalFavoriteIds provides favoriteIds,
+        LocalToggleFavorite provides { id ->
+            scope.launch { FavoriteRepository.toggle(context, id) }
+        },
         LocalOnlineLyrics provides settings.onlineLyrics,
         LocalOnlineArtwork provides settings.onlineArtwork,
         LocalShowTrackInfo provides settings.showTrackInfo,
@@ -256,15 +281,51 @@ fun AppRoot(settings: AppSettings) {
                             modifier = Modifier.padding(padding),
                         ) {
                             composable(Routes.HOME) {
-                                val playStats by remember {
-                                    PlayStatsRepository.stats(context)
-                                }.collectAsStateWithLifecycle(initialValue = emptyMap())
                                 ForYouScreen(
                                     state = library,
                                     stats = playStats,
+                                    favorites = favoriteIds,
+                                    userName = userProfile.name,
+                                    bannerUri = userProfile.bannerUri,
                                     actions = actions,
                                     onOpenAlbum = { id -> navController.navigate(Routes.album(id)) },
                                     onOpenArtist = { id -> navController.navigate(Routes.artist(id)) },
+                                    onOpenList = { type -> navController.navigate(Routes.list(type)) },
+                                    onOpenUserInfo = {
+                                        navController.navigate(Routes.USER_INFO) { launchSingleTop = true }
+                                    },
+                                )
+                            }
+
+                            composable(Routes.USER_INFO) {
+                                UserInfoScreen(
+                                    profile = userProfile,
+                                    onSetName = { name ->
+                                        scope.launch { ProfileRepository.setName(context, name) }
+                                    },
+                                    onSetBanner = { uri ->
+                                        scope.launch { ProfileRepository.setBanner(context, uri) }
+                                    },
+                                    onBack = { navController.popBackStack() },
+                                )
+                            }
+
+                            composable(
+                                route = Routes.LIST,
+                                arguments = listOf(navArgument(Routes.LIST_ARG) { type = NavType.StringType }),
+                            ) { entry ->
+                                TrackListScreen(
+                                    type = entry.arguments?.getString(Routes.LIST_ARG) ?: "",
+                                    state = library,
+                                    stats = playStats,
+                                    favorites = favoriteIds,
+                                    actions = actions,
+                                    onToggleFavorite = { id ->
+                                        scope.launch { FavoriteRepository.toggle(context, id) }
+                                    },
+                                    onOpenAlbum = { id -> navController.navigate(Routes.album(id)) },
+                                    onOpenArtist = { id -> navController.navigate(Routes.artist(id)) },
+                                    onBack = { navController.popBackStack() },
                                 )
                             }
 

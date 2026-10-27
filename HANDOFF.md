@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.8.0-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.9.0-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.8.0-retro (versionCode 23) |
+| 版本 | 2.9.0-retro (versionCode 24) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.8.0-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.9.0-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -192,6 +192,9 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 播放页不能做成导航目的地 | 做 `NavHost` 目的地时，退出动画开始前下层页面已被拆掉，下滑收起会露出空白。必须做成盖在主界面上的抽屉（`PlayerSheetOverlay`），手势位移与收起动画共用同一个 `progress`，否则「松手 → 跳回原位 → 再播动画」 |
 | 上下滑用哪套动画 | 对齐 RetroMusicPlayer 的 `BottomSheetBehavior`：**整块面板做 `translationY` 平移**，`offset = progress × (屏幕高 − 底部栏高)`，全程不缩放不变形，1:1 跟手。**迷你播放器必须是面板顶部的一条**，否则收起时它不跟着走（用户一眼就能看出来） |
 | 迷你播放器放哪 | 上游 `sliding_music_panel_layout.xml` 里 MiniPlayer 是面板的子 View、叠在播放页之上。放底栏（Scaffold `bottomBar`）是错的：面板平移时它不动，观感完全不同。底部栏只留一个同高的 `Spacer` 占位 + 测量 |
+| For you 的入口必须「点进去」 | For you 的快捷按钮 / 分组标题箭头都要导航到列表详情页（TrackListScreen，route `list/{type}`），不要做成直接播放 —— 用户对按钮的预期是进入列表（上游 detailListFragment）；直接播放会被当成「点不进去」。只有「随机播放」例外，上游就是直接 shuffle |
+| 收藏（我的最爱） | `FavoriteRepository`：DataStore StringSet 存 trackId。入口：播放页顶栏心形 + 历史等列表行的心形；For you 底部「我的最爱」分组（横向歌曲卡，收藏空则隐藏）；「我的最爱」按钮 → favorites 列表页 |
+| 用户资料（横幅图与昵称） | `ProfileRepository`（DataStore `user_profile`）。For you 横幅：有自定义图用图（压暗渐变保文字可读），否则用最近播放专辑主色渐变；头像显示昵称/歌手首字母；点击横幅或头像进 `UserInfoScreen`。选图用 OpenDocument 并必须 takePersistableUriPermission，否则重启后 uri 失效 |
 | 圆角要有梯度，别一页一个值 | 2026-10-28 统一为：**列表缩略图 12dp / 网格卡片 16dp / 大图（播放页与详情页封面）24dp / 容器 16dp**。改前是 10 / 14 / 16 / 24 四套并存，同一屏里对不上 |
 | 自绘背景的页面必须自己给内容色 | 播放页根节点是 `Box + background(Brush.verticalGradient)`，不是 `Surface`，所以 `LocalContentColor` 一直是默认的纯黑。没写 `color` / `tint` 的 `Text`、`Icon` 在浅色渐变上勉强能看，深色模式下就是黑字黑图标糊在深色底上（用户截图圈了歌名和上一首/下一首）。用 `CompositionLocalProvider(LocalContentColor provides colorScheme.onSurface)` 包住内容，一处覆盖全部漏色控件 |
 | 搜索栏不要随滚动折叠（2.6.0，已回退） | 做过「搜索栏跟着滚动缩进顶栏」，用户否决：「搜索直接默认放在右上角，恢复之前的顶栏，滑动列表时顶栏不要消失」。现在是 `LargeTopAppBar` 常驻（`exitUntilCollapsed`，只变小标题不滑走）+ 右上角搜索按钮，点开在标题下方 `AnimatedVisibility` 展开搜索栏 |
@@ -279,7 +282,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.8.0-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.9.0-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

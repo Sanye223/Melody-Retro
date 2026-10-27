@@ -44,6 +44,8 @@ fun EmptyState(
     noSearchResult: Boolean,
     onRescan: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 覆盖默认文案（列表详情页的空态各自不同）。 */
+    message: String? = null,
 ) {
     Column(
         modifier = modifier
@@ -60,22 +62,25 @@ fun EmptyState(
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = if (noSearchResult) "没有匹配的结果" else "还没有找到音乐",
+            text = message?.lineSequence()?.firstOrNull()
+                ?: if (noSearchResult) "没有匹配的结果" else "还没有找到音乐",
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = if (noSearchResult) {
-                "换个关键词试试吧"
-            } else {
-                "把 MP3、FLAC 等音频文件放进设备存储，\n然后重新扫描一次。"
+            text = when {
+                message != null -> message.lines().drop(1).joinToString("\n")
+                    .ifBlank { "这里暂时还是空的" }
+
+                noSearchResult -> "换个关键词试试吧"
+                else -> "把 MP3、FLAC 等音频文件放进设备存储，\n然后重新扫描一次。"
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
-        if (!noSearchResult) {
+        if (!noSearchResult && message == null) {
             Spacer(Modifier.height(24.dp))
             Button(onClick = onRescan) { Text("重新扫描") }
         }
