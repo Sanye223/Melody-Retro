@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.7-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.8-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.4.7-retro (versionCode 12) |
+| 版本 | 2.4.8-retro (versionCode 13) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.7-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.8-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -92,7 +92,8 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.7-release.apk    # 已经有打
 | --- | --- | --- |
 | `ui/theme/RetroColors.kt` | **封面取色**：accent / 渐变 / 迷你播放器底色 | 改配色逻辑、觉得取色偏了 |
 | `ui/screens/NowPlayingScreen.kt` | 正在播放：封面页 + 歌词页 Pager、渐变、控制区、歌曲信息 | 播放页所有视觉 |
-| `ui/components/MiniPlayer.kt` | 通栏色块迷你播放器 | 迷你播放器 |
+| `ui/components/MiniPlayer.kt` | 通栏色块迷你播放器（上滑展开播放页） | 迷你播放器 |
+| `ui/components/PlayerSheet.kt` | 播放页抽屉：手势 → 进度 → 弹簧动画；上下滑切换的结算规则 | 上下滑动画、手势手感 |
 | `data/MediaLibraryRepository.kt` | MediaStore 扫描、派生专辑/艺术家、中文排序 | 改扫描范围、排序、无标签兜底 |
 | `data/FileNameMeta.kt` | 从文件名猜 `歌名 / 艺术家`（无 ID3 的文件） | 猜错歌名时 |
 | `data/ArtworkStore.kt` | 封面读取链路：内存 → 内嵌缓存 → 在线缓存 → 内嵌提取 | 封面显示不出来 |
@@ -109,11 +110,11 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.7-release.apk    # 已经有打
 | `data/SettingsRepository.kt` | DataStore：主题、排序、`show_track_info`、`lyric_font_scale`、`lyric_spacing` | 加新设置项 |
 | `playback/PlaybackService.kt` | `MediaSessionService`，通知/锁屏、音频焦点、拔耳机暂停 | 后台播放 |
 | `playback/PlayerManager.kt` | `MediaController` 封装，`StateFlow<PlayerUiState>` | 播放状态 |
-| `ui/AppRoot.kt` | 自适应 Scaffold、NavigationBar/Rail、NavHost、权限申请 | 导航结构 |
+| `ui/AppRoot.kt` | 自适应 Scaffold、NavigationBar/Rail、NavHost、权限申请、播放页抽屉的挂载 | 导航结构 |
 | `ui/screens/SettingsScreen.kt` | 设置页（含歌词设置实时预览） | 设置项 |
 | `ui/theme/Theme.kt` | MD3 配色（取色失败时兜底）+ 系统栏 | 主题 |
 
-测试在 `app/src/test/java/com/melody/player/`，共 **57 项**（见第 5 节）。
+测试在 `app/src/test/java/com/melody/player/`，共 **107 项**（见第 5 节）。
 
 ---
 
@@ -188,6 +189,8 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | `Slider` 自定义 thumb | 需要 `@OptIn(ExperimentalMaterial3Api::class)` |
 | 布局跳动 | 歌词的缩放/透明度**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
 | 歌词换行卡顿 | 别用 `animateScrollToItem` 让整块文字平移（节奏由跨行数决定，忽快忽慢）。改成布局 `dispatchRawDelta` 瞬移 + 每行 `Modifier.lyricRowMotion` 弹簧追上来，才有波浪 |
+| 播放页不能做成导航目的地 | 做 `NavHost` 目的地时，退出动画开始前下层页面已被拆掉，下滑收起会露出空白。必须做成盖在主界面上的抽屉（`PlayerSheetOverlay`），手势位移与收起动画共用同一个 `progress`，否则「松手 → 跳回原位 → 再播动画」 |
+| 进度条圆点跑偏 / 两端被裁 | 别用 `Slider` 的 `thumb` / `track` 槽位拼（M3 1.3 里自定义 track 高度会让拇指不居中对齐）。进度条改为自绘 `Canvas`，且**两端各留一个拇指半径的 inset**，`seekProgressAtX` / `seekThumbCenterX` 用同一套换算才拖得准 |
 | 歌词里露出 `<00:00.245>` | 那是**增强型 LRC 的逐字时间标签**（QQ 下载的曲子常见）。行级 `[mm:ss.xx]` 与逐字 `<mm:ss.xxx>` 都要从正文里剥掉；整行没有行级标签时，取**第一个**逐字标签当行时间（全取会一行拆成几十行） |
 | 取色死黑 | `Palette` 要优先 `vibrant` 而不是 `dominant`，否则大面积黑封面的专辑会得到一片黑 |
 | 歌词「能显示但不滚动」 | 只有一个原因：拿到的是没有时间轴的纯文本（`Lyrics.synced = false`）。来源标签会标注「无时间轴」。常见成因是标签把歌手写错 → 搜到山寨条目 → 那份歌词没时间轴 |
@@ -198,7 +201,7 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 
 ```bash
 cd MelodyRetro
-./gradlew.bat testDebugUnitTest                       # 92 项，含真实联网冒烟测试
+./gradlew.bat testDebugUnitTest                       # 107 项，含真实联网冒烟测试
 ./gradlew.bat testDebugUnitTest -PproxyHost=127.0.0.1 -PproxyPort=8080
 ```
 
@@ -209,12 +212,13 @@ cd MelodyRetro
 | `EmbeddedLyricsTest` | 内嵌歌词：合成 FLAC Vorbis comment / ID3v2 USLT、UTF-8 与 UTF-16、截断容错 | 13 |
 | `LyricFocusMotionTest` | 弹簧轨迹 / 刷新率无关 / 透明度阶梯 / 模糊半径 / 焦点与尾部内边距 | 13 |
 | `LyricDefaultsMigrationTest` | 歌词默认值迁移的边界（只改旧默认、不覆盖用户设置） | 6 |
+| `PlaybackGestureTest` | 进度条换算（两端不裁、位置互逆、越界夹取）、抽屉手势（拖动、阈值、甩动优先） | 11 |
 | `OnlineArtworkLogicTest` | 打分 / 归一化 / 文件名解析 / iTunes 解析 / 图片校验 | 22 |
 | `TrackInfoTest` | 位深解析（FLAC/WAV/AIFF）、码率估算、格式化 | 13 |
 | `LrclibLiveTest` | **真实联网**：QQ 搜索→取词→解析→定位，LRCLIB 兜底 | 2（跳网自动 skip） |
 | `OnlineArtworkLiveTest` | **真实联网**：搜索→打分→下载→校验 | 4（同上） |
 
-当前全绿：**92 通过 / 0 失败 / 0 跳过**。
+当前全绿：**107 通过 / 0 失败 / 0 跳过**。
 
 `LrclibLiveTest` 走的是**生产代码**（真实 HTTP → `pickBest` → `parseLrc`），只是运行在 JVM，
 所以除 Compose 渲染外的全链路都能验证。
@@ -265,7 +269,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.4.7-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.4.8-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

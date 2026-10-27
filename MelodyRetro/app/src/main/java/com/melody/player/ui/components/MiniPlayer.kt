@@ -4,6 +4,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,12 +69,20 @@ fun MiniPlayer(
         0f
     }
     val interaction = remember { MutableInteractionSource() }
+    // 上滑是展开播放页的手势：位移直接喂给抽屉，手指走到哪，播放页就露到哪
+    val sheetDrag = LocalPlayerSheetDrag.current
+    val dragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta) }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(background)
-            .clickable(interactionSource = interaction, indication = null, onClick = onExpand),
+            .clickable(interactionSource = interaction, indication = null, onClick = onExpand)
+            .draggable(
+                state = dragState,
+                orientation = Orientation.Vertical,
+                onDragStopped = { velocity -> sheetDrag?.onEnd(velocity) },
+            ),
     ) {
         // 顶部极细进度：Retro 本身没有，保留它让进度一眼可见，且基本不占高度
         Box(

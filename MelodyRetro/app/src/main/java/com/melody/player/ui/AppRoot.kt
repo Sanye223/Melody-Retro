@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -62,7 +64,11 @@ import androidx.navigation.navArgument
 import com.melody.player.data.AppSettings
 import com.melody.player.data.SettingsRepository
 import com.melody.player.playback.PlayerManager
+import com.melody.player.ui.components.LocalPlayerSheetDrag
 import com.melody.player.ui.components.MiniPlayer
+import com.melody.player.ui.components.PlayerSheetDrag
+import com.melody.player.ui.components.PlayerSheetOverlay
+import com.melody.player.ui.components.rememberPlayerSheetState
 import com.melody.player.ui.screens.AlbumDetailScreen
 import com.melody.player.ui.screens.AlbumsScreen
 import com.melody.player.ui.screens.ArtistDetailScreen
@@ -78,7 +84,6 @@ private object Routes {
     const val ALBUMS = "albums"
     const val ARTISTS = "artists"
     const val SETTINGS = "settings"
-    const val PLAYER = "player"
     const val ALBUM_ARG = "albumId"
     const val ARTIST_ARG = "artistId"
     const val ALBUM_DETAIL = "album/{$ALBUM_ARG}"
@@ -149,6 +154,19 @@ fun AppRoot(settings: AppSettings) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
 
+    // 播放页不再是一个导航目的地，而是盖在主界面上的抽屉 ——
+    // 这样下滑收起时下面的歌曲列表仍然在，才能做出「缩回迷你播放器」的连贯动画
+    val sheetState = rememberPlayerSheetState()
+    val sheetDrag = remember(sheetState, scope) {
+        PlayerSheetDrag(
+            onDrag = { deltaY -> sheetState.dragBy(deltaY) },
+            onEnd = { velocity -> sheetState.settle(scope, velocity) },
+        )
+    }
+
+    // 播放页展开时，系统返回键先收起它
+    BackHandler(enabled = sheetState.isMounted) { sheetState.collapse(scope) }
+
     fun navigateTab(route: String) {
         navController.navigate(route) {
             popUpTo(navController.graph.findStartDestination().id) { saveState = true }
@@ -165,10 +183,16 @@ fun AppRoot(settings: AppSettings) {
         LocalShowTrackInfo provides settings.showTrackInfo,
         LocalLyricFontScale provides settings.lyricFontScale,
         LocalLyricSpacing provides settings.lyricSpacing,
+        LocalPlayerSheetDrag provides sheetDrag,
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val wide = maxWidth >= 720.dp
-            val showBars = currentRoute != Routes.PLAYER && hasPermission
+            // 底部栏一直保留：抽屉盖在上面，隐藏/显示会让下层列表重排，动画看着一跳
+            val showBars = hasPermission
+
+            // 抽屉还没挂载时也要知道屏幕高度，第一次上滑才能立刻跟手
+            val fullHeightPx = constraints.maxHeight.toFloat()
+            SideEffect { sheetState.heightPx = fullHeightPx }
 
             Row(modifier = Modifier.fillMaxSize()) {
                 if (wide && showBars) {
@@ -188,9 +212,7 @@ fun AppRoot(settings: AppSettings) {
                                 wide = wide,
                                 selectedRoute = currentRoute,
                                 onNavigate = ::navigateTab,
-                                onExpandPlayer = {
-                                    navController.navigate(Routes.PLAYER) { launchSingleTop = true }
-                                },
+                                onExpandPlayer = { sheetState.expand(scope) },
                             )
                         }
                     },
@@ -297,13 +319,14 @@ fun AppRoot(settings: AppSettings) {
                                     onBack = { navController.popBackStack() },
                                 )
                             }
-
-                            composable(Routes.PLAYER) {
-                                NowPlayingScreen(onBack = { navController.popBackStack() })
-                            }
                         }
                     }
                 }
+            }
+
+            // 播放页抽屉：盖在导航栏与迷你播放器之上，靠 progress 上下滑
+            PlayerSheetOverlay(state = sheetState) {
+                NowPlayingScreen(onBack = { sheetState.collapse(scope) })
             }
         }
     }

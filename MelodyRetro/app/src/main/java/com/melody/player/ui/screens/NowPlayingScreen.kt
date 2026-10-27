@@ -1,10 +1,17 @@
 package com.melody.player.ui.screens
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -51,8 +58,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -69,9 +74,16 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
@@ -107,6 +119,7 @@ import com.melody.player.ui.components.AlbumArt
 import com.melody.player.ui.components.LYRIC_FOCUS_SCALE
 import com.melody.player.ui.components.LYRIC_IDLE_SCALE
 import com.melody.player.ui.components.LYRIC_MOTION_MS
+import com.melody.player.ui.components.LocalPlayerSheetDrag
 import com.melody.player.ui.components.LyricAutoScrollShift
 import com.melody.player.ui.components.LyricMotionEasing
 import com.melody.player.ui.components.lyricFocusOffsetPx
@@ -146,6 +159,37 @@ private val LYRIC_MIN_BOTTOM_PADDING = 56.dp
 /** 估算最后一行占用的高度，用来算尾部内边距，让末行也能顶到焦点位置。 */
 private val LYRIC_TRAILING_LINE_HEIGHT = 72.dp
 
+// ------------------------------------------------------------------ 进度条尺寸
+
+/**
+ * 进度条两端给圆点留的余量，等于圆点最大半径。
+ *
+ * 不留余量的话，播到 0% / 100% 时圆点会有一半被裁掉，看起来像「圆点跑出轨道」。
+ */
+internal val SeekThumbInset = 8.dp
+
+/** 圆点半径：静息 / 拖动时。 */
+internal val SeekThumbRadius = 6.dp
+internal val SeekThumbRadiusActive = 8.dp
+
+/** 轨道粗细。 */
+private val SeekTrackThickness = 4.dp
+
+/** 整条进度条的触摸高度（比视觉高度大，方便点中）。 */
+private val SeekBarHeight = 34.dp
+
+/** 触点 x → 进度。扣掉两端余量，边缘附近才拖得到 0 / 1。 */
+internal fun seekProgressAtX(x: Float, widthPx: Float, insetPx: Float): Float {
+    val usable = (widthPx - insetPx * 2f).coerceAtLeast(1f)
+    return ((x - insetPx) / usable).coerceIn(0f, 1f)
+}
+
+/** 进度 → 圆点圆心 x。与 [seekProgressAtX] 互为逆运算，缩放/拖动才对得上。 */
+internal fun seekThumbCenterX(progress: Float, widthPx: Float, insetPx: Float): Float {
+    val usable = (widthPx - insetPx * 2f).coerceAtLeast(0f)
+    return insetPx + progress.coerceIn(0f, 1f) * usable
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -171,9 +215,24 @@ fun NowPlayingScreen(onBack: () -> Unit) {
     val gradientMiddle by animateColorAsState(retro.gradientMiddle, tween(560), label = "gradientMiddle")
     val gradientBottom by animateColorAsState(retro.gradientBottom, tween(560), label = "gradientBottom")
 
+    // 下滑收起：位移交给宿主（AppRoot）的抽屉状态。
+    // 只在「子级没吃掉这次拖动」时生效 —— 歌词列表、进度条都会先消费自己的手势。
+    val sheetDrag = LocalPlayerSheetDrag.current
+    val sheetDragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta) }
+    val sheetDragModifier = if (sheetDrag == null) {
+        Modifier
+    } else {
+        Modifier.draggable(
+            state = sheetDragState,
+            orientation = Orientation.Vertical,
+            onDragStopped = { velocity -> sheetDrag.onEnd(velocity) },
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .then(sheetDragModifier)
             .background(
                 Brush.verticalGradient(
                     colorStops = arrayOf(
@@ -706,23 +765,26 @@ private fun PageDots(count: Int, current: Int, accent: Color) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SeekBar(state: PlayerUiState, actions: PlayerActions, colors: RetroColors) {
     var dragging by remember { mutableStateOf(false) }
     var dragValue by remember { mutableFloatStateOf(0f) }
 
     val duration = state.durationMs.coerceAtLeast(1L)
-    val sliderValue = if (dragging) {
+    // 拖动时用本地值，松手后交回播放器 —— 否则 seek 的往返延迟会让圆点跳回去再过来
+    val progress = if (dragging) {
         dragValue
     } else {
         (state.positionMs.toFloat() / duration).coerceIn(0f, 1f)
     }
     val displayedPosition = if (dragging) (dragValue * duration).toLong() else state.positionMs
-    val sliderColors = SliderDefaults.colors(
-        thumbColor = colors.accent,
-        activeTrackColor = colors.accent,
-        inactiveTrackColor = colors.accent.copy(alpha = 0.22f),
+
+    val density = LocalDensity.current
+    val insetPx = with(density) { SeekThumbInset.toPx() }
+    val thumbRadius by animateDpAsState(
+        targetValue = if (dragging) SeekThumbRadiusActive else SeekThumbRadius,
+        animationSpec = tween(140),
+        label = "seekThumbRadius",
     )
 
     Row(
@@ -735,45 +797,85 @@ private fun SeekBar(state: PlayerUiState, actions: PlayerActions, colors: RetroC
             text = formatDuration(displayedPosition),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(42.dp),
+            modifier = Modifier.width(44.dp),
         )
-        Slider(
-            value = sliderValue,
-            onValueChange = { value ->
-                dragging = true
-                dragValue = value
-            },
-            onValueChangeFinished = {
-                dragging = false
-                actions.seekTo((dragValue * duration).toLong())
-            },
-            valueRange = 0f..1f,
-            colors = sliderColors,
-            thumb = {
-                Box(
-                    modifier = Modifier
-                        .size(if (dragging) 16.dp else 12.dp)
-                        .clip(CircleShape)
-                        .background(colors.accent),
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(SeekBarHeight)
+                // 点一下直接跳到该位置
+                .pointerInput(duration) {
+                    detectTapGestures { offset ->
+                        val value = seekProgressAtX(offset.x, size.width.toFloat(), insetPx)
+                        dragValue = value
+                        actions.seekTo((value * duration).toLong())
+                    }
+                }
+                // 拖动跟手：换算用的是「扣掉两端余量后的有效宽度」，所以 0% / 100% 也对得上
+                .pointerInput(duration) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            dragging = true
+                            dragValue = seekProgressAtX(offset.x, size.width.toFloat(), insetPx)
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            dragValue = seekProgressAtX(change.position.x, size.width.toFloat(), insetPx)
+                        },
+                        onDragEnd = {
+                            dragging = false
+                            actions.seekTo((dragValue * duration).toLong())
+                        },
+                        onDragCancel = { dragging = false },
+                    )
+                }
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+                },
+        ) {
+            val accent = colors.accent
+            val idleTrack = accent.copy(alpha = 0.22f)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val centerY = size.height / 2f
+                // DrawScope 本身就是 Density，直接换算
+                val trackHeight = SeekTrackThickness.toPx()
+                val radius = thumbRadius.toPx()
+                val thumbX = seekThumbCenterX(progress, size.width, insetPx)
+
+                drawRoundRect(
+                    color = idleTrack,
+                    topLeft = Offset(insetPx, centerY - trackHeight / 2f),
+                    size = Size((size.width - insetPx * 2f).coerceAtLeast(0f), trackHeight),
+                    cornerRadius = CornerRadius(trackHeight / 2f),
                 )
-            },
-            track = { sliderState ->
-                SliderDefaults.Track(
-                    sliderState = sliderState,
-                    modifier = Modifier.height(4.dp),
-                    enabled = true,
-                    colors = sliderColors,
-                    drawStopIndicator = {},
-                )
-            },
-            modifier = Modifier.weight(1f),
-        )
+                val playedWidth = thumbX - insetPx
+                if (playedWidth > 0f) {
+                    // 至少画出一个圆头，避免刚开始播时左边出现一个方角
+                    val width = playedWidth.coerceAtLeast(trackHeight)
+                    drawRoundRect(
+                        color = accent,
+                        topLeft = Offset(insetPx, centerY - trackHeight / 2f),
+                        size = Size(width, trackHeight),
+                        cornerRadius = CornerRadius(trackHeight / 2f),
+                    )
+                }
+                if (dragging) {
+                    // 拖动时的柔光圈，只做视觉提示，不参与命中
+                    drawCircle(
+                        color = accent.copy(alpha = 0.18f),
+                        radius = radius * 2.4f,
+                        center = Offset(thumbX, centerY),
+                    )
+                }
+                drawCircle(color = accent, radius = radius, center = Offset(thumbX, centerY))
+            }
+        }
         Text(
             text = formatDuration(state.durationMs),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.End,
-            modifier = Modifier.width(42.dp),
+            modifier = Modifier.width(44.dp),
         )
     }
 }
