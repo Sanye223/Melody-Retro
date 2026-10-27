@@ -419,7 +419,7 @@ private fun HomeButtons(
     Column(modifier = modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             ActionButton(
-                text = "历史",
+                text = "历史播放",
                 icon = Icons.Rounded.History,
                 colors = colors,
                 enabled = hasHistory,

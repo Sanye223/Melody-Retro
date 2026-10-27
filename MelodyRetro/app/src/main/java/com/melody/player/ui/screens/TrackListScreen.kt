@@ -38,6 +38,11 @@ import com.melody.player.ui.PlayerActions
 import com.melody.player.ui.components.AlbumArt
 import com.melody.player.ui.components.EmptyState
 import com.melody.player.ui.components.SongRow
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 
 /**
  * 列表详情页：For you 的快捷按钮与分组标题点进来的地方
@@ -77,10 +82,17 @@ internal fun tracksForList(
     type: String,
     state: LibraryUiState,
     stats: Map<Long, PlayStat>,
+    historySort: Int = 0,
 ): List<com.melody.player.data.model.Track> = when (type) {
-    ListType.HISTORY -> state.tracks
-        .filter { (stats[it.id]?.lastPlayedAt ?: 0L) > 0L }
-        .sortedByDescending { stats[it.id]?.lastPlayedAt ?: 0L }
+    ListType.HISTORY -> {
+        val played = state.tracks
+            .filter { (stats[it.id]?.lastPlayedAt ?: 0L) > 0L }
+        if (historySort == 1) {
+            played.sortedByDescending { stats[it.id]?.count ?: 0 }
+        } else {
+            played.sortedByDescending { stats[it.id]?.lastPlayedAt ?: 0L }
+        }
+    }
 
     ListType.LAST_ADDED -> state.tracks.sortedByDescending { it.dateAdded }
     ListType.TOP_TRACKS -> state.tracks
@@ -154,6 +166,8 @@ fun TrackListScreen(
     onOpenAlbum: (Long) -> Unit,
     onOpenArtist: (Long) -> Unit,
     onBack: () -> Unit,
+    historySort: Int = 0,
+    onHistorySortChange: ((Int) -> Unit)? = null,
 ) {
     val title = ListType.titles[type] ?: "列表"
 
@@ -161,11 +175,43 @@ fun TrackListScreen(
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = NoInsets,
         topBar = {
+            var menuOpen by remember { mutableStateOf(false) }
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    // 只有历史页提供排序切换（最近播放 / 播放次数）
+                    if (type == ListType.HISTORY && onHistorySortChange != null) {
+                        IconButton(onClick = { menuOpen = true }) {
+                            Icon(Icons.Rounded.MoreVert, contentDescription = "排序方式")
+                        }
+                        androidx.compose.material3.DropdownMenu(
+                            expanded = menuOpen,
+                            onDismissRequest = { menuOpen = false },
+                        ) {
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = {
+                                    Text(if (historySort == 0) "✓ 最近播放排序" else "最近播放排序")
+                                },
+                                onClick = {
+                                    onHistorySortChange(0)
+                                    menuOpen = false
+                                },
+                            )
+                            androidx.compose.material3.DropdownMenuItem(
+                                text = {
+                                    Text(if (historySort == 1) "✓ 播放次数排序" else "播放次数排序")
+                                },
+                                onClick = {
+                                    onHistorySortChange(1)
+                                    menuOpen = false
+                                },
+                            )
+                        }
                     }
                 },
             )
@@ -181,7 +227,7 @@ fun TrackListScreen(
             isSongList -> {
                 val songs = when (type) {
                     ListType.FAVORITES -> state.tracks.filter { it.id in favorites }
-                    else -> tracksForList(type, state, stats)
+                    else -> tracksForList(type, state, stats, historySort)
                 }
                 if (songs.isEmpty()) {
                     EmptyState(
@@ -210,6 +256,8 @@ fun TrackListScreen(
                                 onClick = { actions.playQueue(songs, songs.indexOf(track)) },
                                 isFavorite = track.id in favorites,
                                 onToggleFavorite = { onToggleFavorite(track.id) },
+                                // 历史页 / 最多播放页显示次数，其余不显示
+                                playCount = if (type == ListType.HISTORY) stats[track.id]?.count ?: 0 else -1,
                             )
                         }
                     }

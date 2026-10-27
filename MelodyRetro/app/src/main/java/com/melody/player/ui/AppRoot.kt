@@ -96,6 +96,9 @@ import com.melody.player.ui.screens.TrackListScreen
 import com.melody.player.data.ProfileRepository
 import com.melody.player.data.UserProfile
 import com.melody.player.ui.screens.UserInfoScreen
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 
 private object Routes {
     const val HOME = "home"
@@ -279,6 +282,12 @@ fun AppRoot(settings: AppSettings) {
                             navController = navController,
                             startDestination = Routes.HOME,
                             modifier = Modifier.padding(padding),
+                            // 默认转场是 700ms 淡入淡出：返回后旧页面还叠在屏幕上
+                            // 吃点击，体感就是「退出来要等一会才能触控」。压到 180ms。
+                            enterTransition = { fadeIn(tween(180)) },
+                            exitTransition = { fadeOut(tween(120)) },
+                            popEnterTransition = { fadeIn(tween(180)) },
+                            popExitTransition = { fadeOut(tween(120)) },
                         ) {
                             composable(Routes.HOME) {
                                 ForYouScreen(
@@ -326,6 +335,10 @@ fun AppRoot(settings: AppSettings) {
                                     onOpenAlbum = { id -> navController.navigate(Routes.album(id)) },
                                     onOpenArtist = { id -> navController.navigate(Routes.artist(id)) },
                                     onBack = { navController.popBackStack() },
+                                    historySort = settings.historySort,
+                                    onHistorySortChange = { sort ->
+                                        scope.launch { SettingsRepository.setHistorySort(context, sort) }
+                                    },
                                 )
                             }
 

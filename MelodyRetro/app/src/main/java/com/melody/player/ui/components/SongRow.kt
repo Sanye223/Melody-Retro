@@ -38,6 +38,8 @@ fun SongRow(
     showAlbum: Boolean = true,
     isFavorite: Boolean = false,
     onToggleFavorite: (() -> Unit)? = null,
+    /** 播放次数（≥0 才显示），历史页用。 */
+    playCount: Int = -1,
 ) {
     Row(
         modifier = modifier
@@ -93,7 +95,10 @@ fun SongRow(
         }
         Spacer(modifier = Modifier.width(2.dp))
         Text(
-            text = formatDuration(track.durationMs),
+            text = buildString {
+                if (playCount >= 0) append("$playCount 次 · ")
+                append(formatDuration(track.durationMs))
+            },
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

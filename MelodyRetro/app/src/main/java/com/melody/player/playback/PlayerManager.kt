@@ -28,6 +28,9 @@ import kotlinx.coroutines.launch
 const val KEY_ALBUM_ID = "album_id"
 const val KEY_PATH = "file_path"
 
+/** 播放满这个时长才计入播放次数（毫秒）。 */
+const val PLAY_COUNT_THRESHOLD_MS = 30_000L
+
 /** 当前播放歌曲在 UI 层需要的全部信息。 */
 data class NowPlaying(
     val id: Long,
@@ -97,6 +100,9 @@ object PlayerManager {
 
     /** 上一次已经记入播放统计的曲目，避免同一首反复触发。 */
     private var lastRecordedTrackId = 0L
+
+    /** 当前这首是否已经记过数（换曲后重置）。 */
+    private var recordedForCurrent = false
 
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
@@ -180,17 +186,26 @@ object PlayerManager {
         val duration = player.duration
         val metaDuration = metadata?.durationMs ?: fallback?.durationMs ?: 0L
 
-        // 播放统计：只在「换了一首且真的在播」时记一次，
-        // sync 会被位置 / 状态频繁触发，不做去重会把次数刷上天
-        if (current != null && player.isPlaying && current.id != lastRecordedTrackId) {
-            lastRecordedTrackId = current.id
-            if (::appContext.isInitialized) {
+        // 播放统计：换曲时先不动账，**播放满 30 秒**才记一次 ——
+        // 不然连续切歌试听会把「最多播放」刷成一堆只有 1 次的噪音。
+        // sync 会被位置 / 状态频繁触发，去重靠 recordedForCurrent。
+        if (current == null) {
+            lastRecordedTrackId = 0L
+            recordedForCurrent = false
+        } else {
+            if (current.id != lastRecordedTrackId) {
+                lastRecordedTrackId = current.id
+                recordedForCurrent = false
+            }
+            if (!recordedForCurrent && player.isPlaying &&
+                player.currentPosition >= PLAY_COUNT_THRESHOLD_MS &&
+                ::appContext.isInitialized
+            ) {
+                recordedForCurrent = true
                 val id = current.id
                 val ctx = appContext
                 scope.launch { PlayStatsRepository.recordPlay(ctx, id) }
             }
-        } else if (current == null) {
-            lastRecordedTrackId = 0L
         }
 
         _state.update {

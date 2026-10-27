@@ -25,6 +25,8 @@ data class AppSettings(
     val lyricFontScale: Float = SettingsRepository.DEFAULT_LYRIC_FONT_SCALE,
     /** 歌词行上下间距，单位 dp（范围 2~24）。 */
     val lyricSpacing: Int = SettingsRepository.DEFAULT_LYRIC_SPACING,
+    /** 历史页排序：0 = 按最近播放，1 = 按播放次数。 */
+    val historySort: Int = SettingsRepository.HISTORY_SORT_RECENT,
 )
 
 private val Context.settingsDataStore by preferencesDataStore(name = "melody_settings")
@@ -42,6 +44,10 @@ object SettingsRepository {
 
     /** 默认上下间距：字号变大后间距收窄，整屏能多看两行。 */
     const val DEFAULT_LYRIC_SPACING = 4
+
+    /** 历史页排序：按最近播放（默认）/ 按播放次数。 */
+    const val HISTORY_SORT_RECENT = 0
+    const val HISTORY_SORT_COUNT = 1
 
     /** 2.4.4 及更早版本的默认值，仅用于一次性迁移。 */
     private const val LEGACY_LYRIC_FONT_SCALE = 1.0f
@@ -63,6 +69,7 @@ object SettingsRepository {
         val SHOW_TRACK_INFO = booleanPreferencesKey("show_track_info")
         val LYRIC_FONT_SCALE = floatPreferencesKey("lyric_font_scale")
         val LYRIC_SPACING = intPreferencesKey("lyric_spacing")
+        val HISTORY_SORT = intPreferencesKey("history_sort")
         val SCHEMA = intPreferencesKey("settings_schema")
     }
 
@@ -111,6 +118,7 @@ object SettingsRepository {
                 showTrackInfo = prefs[Keys.SHOW_TRACK_INFO] ?: true,
                 lyricFontScale = prefs[Keys.LYRIC_FONT_SCALE] ?: DEFAULT_LYRIC_FONT_SCALE,
                 lyricSpacing = prefs[Keys.LYRIC_SPACING] ?: DEFAULT_LYRIC_SPACING,
+                historySort = prefs[Keys.HISTORY_SORT] ?: HISTORY_SORT_RECENT,
             )
         }
 
@@ -148,5 +156,9 @@ object SettingsRepository {
         context.settingsDataStore.edit {
             it[Keys.LYRIC_SPACING] = dp.coerceIn(MIN_LYRIC_SPACING, MAX_LYRIC_SPACING)
         }
+    }
+
+    suspend fun setHistorySort(context: Context, sort: Int) {
+        context.settingsDataStore.edit { it[Keys.HISTORY_SORT] = sort }
     }
 }
