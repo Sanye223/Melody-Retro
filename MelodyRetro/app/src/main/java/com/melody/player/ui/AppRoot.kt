@@ -1,6 +1,7 @@
 package com.melody.player.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -159,8 +161,16 @@ fun AppRoot(settings: AppSettings) {
     val sheetState = rememberPlayerSheetState()
     val sheetDrag = remember(sheetState, scope) {
         PlayerSheetDrag(
-            onDrag = { deltaY -> sheetState.dragBy(deltaY) },
-            onEnd = { velocity -> sheetState.settle(scope, velocity) },
+            onDrag = { deltaY, fromContent ->
+                if (fromContent) sheetState.dragByFromContent(deltaY) else sheetState.dragBy(deltaY)
+            },
+            onEnd = { velocity, fromContent ->
+                if (fromContent) {
+                    sheetState.settleFromContent(scope, velocity)
+                } else {
+                    sheetState.settle(scope, velocity)
+                }
+            },
         )
     }
 
@@ -208,12 +218,21 @@ fun AppRoot(settings: AppSettings) {
                     contentWindowInsets = NoInsets,
                     bottomBar = {
                         if (showBars) {
-                            BottomArea(
-                                wide = wide,
-                                selectedRoute = currentRoute,
-                                onNavigate = ::navigateTab,
-                                onExpandPlayer = { sheetState.expand(scope) },
-                            )
+                            // 量出底部栏高度：播放页收起时就缩到这么高，
+                            // 也就是「缩成迷你播放器」，而不是滑出屏幕
+                            Box(
+                                modifier = Modifier.onGloballyPositioned { coordinates ->
+                                    val measured = coordinates.size.height.toFloat()
+                                    if (measured > 0f) sheetState.bottomBarHeightPx = measured
+                                },
+                            ) {
+                                BottomArea(
+                                    wide = wide,
+                                    selectedRoute = currentRoute,
+                                    onNavigate = ::navigateTab,
+                                    onExpandPlayer = { sheetState.expand(scope) },
+                                )
+                            }
                         }
                     },
                 ) { padding ->

@@ -218,14 +218,14 @@ fun NowPlayingScreen(onBack: () -> Unit) {
     // 下滑收起：位移交给宿主（AppRoot）的抽屉状态。
     // 只在「子级没吃掉这次拖动」时生效 —— 歌词列表、进度条都会先消费自己的手势。
     val sheetDrag = LocalPlayerSheetDrag.current
-    val sheetDragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta) }
+    val sheetDragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta, true) }
     val sheetDragModifier = if (sheetDrag == null) {
         Modifier
     } else {
         Modifier.draggable(
             state = sheetDragState,
             orientation = Orientation.Vertical,
-            onDragStopped = { velocity -> sheetDrag.onEnd(velocity) },
+            onDragStopped = { velocity -> sheetDrag.onEnd(velocity, true) },
         )
     }
 

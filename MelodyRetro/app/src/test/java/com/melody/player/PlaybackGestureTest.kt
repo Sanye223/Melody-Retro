@@ -1,7 +1,10 @@
 package com.melody.player
 
 import com.melody.player.ui.components.SHEET_DISMISS_THRESHOLD
+import com.melody.player.ui.components.SHEET_FADE_START
+import com.melody.player.ui.components.sheetAlphaAt
 import com.melody.player.ui.components.sheetProgressAfterDrag
+import com.melody.player.ui.components.sheetScaleAt
 import com.melody.player.ui.components.sheetSettleTarget
 import com.melody.player.ui.screens.seekProgressAtX
 import com.melody.player.ui.screens.seekThumbCenterX
@@ -106,5 +109,56 @@ class PlaybackGestureTest {
         assertEquals(0f, sheetSettleTarget(0.18f, 0f, -3000f, height), 0f)
         // 反过来：只拖了一点点但往下甩：收起
         assertEquals(1f, sheetSettleTarget(0.05f, 0f, 3000f, height), 0f)
+    }
+
+    // ------------------------------------------------------------------ 收起时的形变
+
+    private val screen = 2000f
+    private val bar = 220f                    // 迷你播放器 + 导航栏
+    private val travel = screen - bar          // 手势要走的距离
+
+    @Test
+    fun `展开状态铺满屏幕`() {
+        assertEquals(1f, sheetScaleAt(0f, screen, travel), 0.0001f)
+        assertEquals(1f, sheetAlphaAt(0f), 0f)
+    }
+
+    @Test
+    fun `收起状态正好缩成底部栏那么高`() {
+        val barFraction = bar / screen
+        assertEquals(barFraction, sheetScaleAt(1f, screen, travel), 0.0001f)
+    }
+
+    @Test
+    fun `页面顶边始终跟着手指走`() {
+        // 缩放原点在底部中心，所以顶边 = 高度 ×（1 − 缩放）；
+        // 它必须等于 progress × travel，手指走多远页面就长多少
+        for (step in 0..10) {
+            val progress = step / 10f
+            val topEdge = screen * (1f - sheetScaleAt(progress, screen, travel))
+            assertEquals(progress * travel, topEdge, 0.5f)
+        }
+    }
+
+    @Test
+    fun `缩放随进度单调收小`() {
+        var previous = 2f
+        for (step in 0..10) {
+            val scale = sheetScaleAt(step / 10f, screen, travel)
+            assertTrue("第 $step 档不应该变大：$scale >= $previous", scale < previous)
+            previous = scale
+        }
+    }
+
+    @Test
+    fun `最后一段淡出以衔接迷你播放器`() {
+        assertEquals(1f, sheetAlphaAt(SHEET_FADE_START), 0.0001f)
+        assertTrue(sheetAlphaAt(0.95f) in 0.01f..0.99f)
+        assertEquals(0f, sheetAlphaAt(1f), 0.0001f)
+    }
+
+    @Test
+    fun `高度还没量出来时不缩放`() {
+        assertEquals(1f, sheetScaleAt(0.5f, 0f, travel), 0f)
     }
 }

@@ -4,7 +4,7 @@
 **视觉层完全按 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer) 的设计语言重做**：
 配色由当前歌曲封面决定、整屏竖向渐变、通栏迷你播放器、紧凑网格。
 
-- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.8-retro**，目录 `MelodyRetro/`
+- 包名 `com.melody.retro`，应用名「Melody Retro」，版本 **2.4.9-retro**，目录 `MelodyRetro/`
 - 最低支持 **Android 7.0（API 24）**，目标 **Android 15（API 35）**
 - 这是项目当前**唯一**的版本。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`）
   已于 2026-10-27 彻底移除（代码、git 历史、本机备份、手机安装包全部清除），
@@ -90,7 +90,7 @@ Kotlin + Jetpack Compose 重新实现（原项目是 `compileSdk 36` + KSP/Realm
 | 专辑 | 自适应网格（`LazyVerticalGrid` + `GridCells.Adaptive`），点击进入专辑详情 |
 | 艺术家 | 圆形封面列表，点击进入艺术家详情 |
 | 播放控制 | 播放 / 暂停 / 上一曲 / 下一曲 / 进度条拖动 / 随机播放 / 单曲循环 / 列表循环 |
-| 播放页手势 | **向下滑动收起**播放页、**在迷你播放器上向上滑动展开**；拖动与动画共用同一个进度值，手指走到哪页面就跟到哪，松手按位移与速度决定收起还是回弹 |
+| 播放页手势 | **向下滑动收起**播放页、**在迷你播放器上向上滑动展开**；页面以底部栏为原点整体缩放，底边钉在屏幕底部，**顶边实时跟着手指**（拖多少长多少），松开后按位移与速度决定收起还是回弹 |
 | 滚动歌词 | 解析 LRC（含 `[mm:ss.xx]` 时间轴、offset 偏移），随播放进度逐行滚动并高亮，点击歌词行可跳转；兼容增强型 LRC 的逐字标签 `<mm:ss.xxx>`（自动剥离，不显示成正文） |
 | 歌词来源 | 同名 `.lrc` → **音频内嵌标签**（FLAC `LYRICS` / MP3 `USLT`，离线） → QQ 音乐 → LRCLIB，命中即停 |
 | 在线歌词 | 对接 **QQ 音乐**（主源，多候选取带时间轴的那份）与 LRCLIB（兜底），按 标题 + 艺术家 + 时长 自动匹配同步歌词，结果本地缓存，可开关与手动重搜 |
@@ -561,7 +561,7 @@ app/src/main/java/com/melody/player/          # namespace 仍是 com.melody.play
 │       └── RetroColors.kt       # ★ 封面取色：accent / 渐变 / 迷你播放器底色
 └── util/                        # AudioPermission、Format（时长格式化）
 
-app/src/test/java/com/melody/player/          # 共 107 项，见第 9 节
+app/src/test/java/com/melody/player/          # 共 113 项，见第 9 节
 ├── LyricsLogicTest.kt           # LRC 解析 / 定位 / 在线候选排序（8 项，纯逻辑）
 ├── QqMusicLogicTest.kt          # QQ 接口 JSON / 实体还原 / 异常码 / 选歌（8 项）
 ├── OnlineArtworkLogicTest.kt    # 打分 / 归一化 / 文件名解析 / iTunes / 图片校验（22 项）
@@ -593,7 +593,7 @@ tools/
 
 ### 9.1 已完成的自动化验证
 
-全部用例：**107 项通过 / 0 失败 / 0 跳过**。
+全部用例：**113 项通过 / 0 失败 / 0 跳过**。
 
 | 项目 | 命令 | 结果 |
 | --- | --- | --- |

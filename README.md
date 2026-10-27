@@ -12,8 +12,8 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.8--retro-1f6feb)
-![Tests](https://img.shields.io/badge/tests-107%20passed-2ea043)
+![Version](https://img.shields.io/badge/version-2.4.9--retro-1f6feb)
+![Tests](https://img.shields.io/badge/tests-113%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
 
@@ -51,8 +51,8 @@
 3. **界面别抢戏。** 歌词左对齐、点击瞬亮 0.4 秒后淡出；当前行停在视口 **24%** 处不再动，
    换行时各行按距离错峰追上去，形成一道自上而下的波浪，远处的行渐淡并轻微虚化。
    所有缩放只改绘制矩阵，不参与布局，绝不跳行。
-4. **一个手势就上下走。** 播放页向下滑收起、迷你播放器向上滑展开，页面跟着手指走，
-   松手按拖动距离和速度决定去留，播放不中断 —— 不是「点一下等一个转场动画」。
+4. **一个手势就上下走。** 播放页向下滑收起、迷你播放器向上滑展开；页面以底部栏为原点整体
+   缩放，顶边实时跟着手指走，松手按距离和速度决定去留，播放不中断。
 
 ## 功能
 
@@ -136,12 +136,12 @@ cd MelodyRetro
 装到手机（首次启动需要授予「音乐和音频」权限）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.8-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.9-release.apk
 ```
 
 > Release 包用的是 **debug 签名**，目的是能直接装上体验。要正式分发请换成你自己的 keystore。
 
-跑测试（107 项，其中 6 项会真实联网，断网自动跳过）：
+跑测试（113 项，其中 6 项会真实联网，断网自动跳过）：
 
 ```bash
 ./gradlew.bat testDebugUnitTest
@@ -156,7 +156,7 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.8-release.apk
 │   │   ├── data/          # MediaStore 扫描、封面、歌词、歌曲信息、DataStore
 │   │   ├── playback/      # MediaSessionService + PlayerManager
 │   │   └── ui/            # Compose 界面，theme/RetroColors.kt 是封面取色
-│   ├── app/src/test/      # 107 项单元测试（含真实联网冒烟）
+│   ├── app/src/test/      # 113 项单元测试（含真实联网冒烟）
 │   ├── tools/             # 真机验证脚本 + 测试音频
 │   └── dist/              # 打好的 APK
 ├── tools/                 # 环境自举 + 分享包打包脚本
@@ -262,6 +262,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 13 · 2.4.8-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 14 · 2.4.9-retro</sub>
 
 </div>

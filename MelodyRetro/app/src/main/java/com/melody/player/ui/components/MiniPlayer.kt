@@ -69,9 +69,10 @@ fun MiniPlayer(
         0f
     }
     val interaction = remember { MutableInteractionSource() }
-    // 上滑是展开播放页的手势：位移直接喂给抽屉，手指走到哪，播放页就露到哪
+    // 上滑是展开播放页的手势：位移直接喂给抽屉，手指走到哪，播放页就长到哪。
+    // 迷你播放器不在缩放层里，所以坐标就是屏幕坐标（fromContent = false）
     val sheetDrag = LocalPlayerSheetDrag.current
-    val dragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta) }
+    val dragState = rememberDraggableState { delta -> sheetDrag?.onDrag(delta, false) }
 
     Column(
         modifier = modifier
@@ -81,7 +82,7 @@ fun MiniPlayer(
             .draggable(
                 state = dragState,
                 orientation = Orientation.Vertical,
-                onDragStopped = { velocity -> sheetDrag?.onEnd(velocity) },
+                onDragStopped = { velocity -> sheetDrag?.onEnd(velocity, false) },
             ),
     ) {
         // 顶部极细进度：Retro 本身没有，保留它让进度一眼可见，且基本不占高度
