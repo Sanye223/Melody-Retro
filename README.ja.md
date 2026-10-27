@@ -13,7 +13,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.2--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.4--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -61,8 +61,10 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
    ジャケットも歌詞も入っていないことがざらです。こちらから探しに行き、スコアリングして、
    当たりをキャッシュします。二度目以降は通信しません。
 3. **UI は主張しない。** 歌詞は左揃え。タップすると 0.4 秒光ってフェードします。
-   現在行は 1.10 倍に拡大しますが、`graphicsLayer` だけなのでレイアウトは再計算されず、
-   リストが飛ぶこともありません。
+   現在行は視口の 24% の位置で止まり、動きません。次の行に移るときは、各行が距離に応じて
+   ずらしながら自分のバネで追従するので、テキストの塊が滑るのではなく波になります。
+   遠い行は薄くなり、少しぼけます。拡縮はすべて `graphicsLayer` だけなのでレイアウトは
+   再計算されず、リストが飛ぶこともありません。
 
 ## 機能
 
@@ -95,7 +97,7 @@ flowchart LR
     H -->|ヒット| G
     H -->|ミス| E
     G --> I["cacheDir/lyrics/ にキャッシュ"]
-    I --> J[自動スクロール + 現在行を拡大]
+    I --> J[行ごとのバネ追従 + フォーカス階層]
 ```
 
 **ジャケット。** 最初に当たったものが勝ち。「別のソースでも確認しておくか」はやりません。
@@ -142,7 +144,7 @@ cd MelodyRetro
 実機へ（初回起動時に音声の権限を許可してください）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.4-release.apk
 ```
 
 > 注意：release ビルドは**わざと debug キーストアで署名**しています。すぐ入れて触れるようにするためです。
@@ -228,6 +230,20 @@ UI は Kotlin + Compose で書き直しています。本家は `compileSdk 36` 
 RetroMusicPlayer の作者とコントリビュータに感謝します。
 このデザイン言語は、一度 Compose で書き直される価値がありました。
 
+### 歌詞のモーション
+
+歌詞のフォーカス行スクロールと階層は **[Kifranei/Halcyon](https://github.com/Kifranei/Halcyon)**
+（Apache-2.0）からの移植です。`ui/components/LyricFocusMotion.kt` は本家の `ReferenceLyricMotion.kt`、
+`LyricsContent` は `AppleMusicLyricsView.kt` + `AppleMusicLyricLine.kt` が元になっています。
+
+持ってきたのはアルゴリズムと数値です。閉形式のバネ、`CubicBezier(.4, .1, 0, 1)` のカーブ、
+1 行あたり 30ms のずらし、「レイアウトを飛ばして各行がバネで追いかける」スクロールモデル、
+1.0 / 0.98 のスケールと 0.24→0.13 の透明度。持ってきていないのは、単語単位のタイミングが
+無いので語ごとのリフトとカラオケ塗りはやっていない点と、フォーカス行の色が単色ではなく
+ジャケット由来のアクセント色になっている点です。
+
+Apache-2.0 の都合で通知を残す必要があるので、移植したファイルの先頭に帰属を書いてあります。
+
 ## ライセンス
 
 **GPL-3.0**（本家と同じ）。
@@ -253,6 +269,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 7 · 2.4.2-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 9 · 2.4.4-retro</sub>
 
 </div>

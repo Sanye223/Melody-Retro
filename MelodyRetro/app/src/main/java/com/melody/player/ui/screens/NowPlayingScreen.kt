@@ -1,12 +1,12 @@
 package com.melody.player.ui.screens
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -65,11 +65,15 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
@@ -100,16 +104,47 @@ import com.melody.player.ui.LyricsViewModel
 import com.melody.player.ui.NoInsets
 import com.melody.player.ui.PlayerActions
 import com.melody.player.ui.components.AlbumArt
+import com.melody.player.ui.components.LYRIC_FOCUS_SCALE
+import com.melody.player.ui.components.LYRIC_IDLE_SCALE
+import com.melody.player.ui.components.LYRIC_MOTION_MS
+import com.melody.player.ui.components.LyricAutoScrollShift
+import com.melody.player.ui.components.LyricMotionEasing
+import com.melody.player.ui.components.lyricFocusOffsetPx
+import com.melody.player.ui.components.lyricLineAlpha
+import com.melody.player.ui.components.lyricLineBlurDp
+import com.melody.player.ui.components.lyricRowMotion
+import com.melody.player.ui.components.lyricTrailingPaddingPx
 import com.melody.player.ui.theme.RetroColors
 import com.melody.player.ui.theme.rememberRetroColors
 import com.melody.player.util.formatDuration
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
+import kotlin.math.abs
 
 /** 点击歌词行后点亮保持的时长，之后恢复原状。 */
 private const val FLASH_DURATION_MS = 420L
 
-/** 当前歌词行放大到 1.10 倍：够明显，又不至于和相邻行挤在一起。 */
-private const val LYRIC_ACTIVE_SCALE = 1.10f
+/** 手动翻歌词后，隔多久自动回到当前行。 */
+private const val MANUAL_SCROLL_RECENTER_MS = 2_000L
+
+/** 焦点行与目标位置的差在这个像素以内就不再纠位，避免每帧抖一下。 */
+private const val LYRIC_SCROLL_THRESHOLD_PX = 0.75f
+
+/** 纠位最多重试两轮：第一轮移动布局，第二轮确认各行的视觉位置已跟上。 */
+private const val LYRIC_SCROLL_CORRECTION_PASSES = 2
+
+/** 非焦点行的模糊强度（%），与上游默认值一致。 */
+private const val LYRIC_BLUR_PERCENT = 40
+
+/** 视口顶部至少留出这么多，矮屏上焦点比例才不至于贴顶。 */
+private val LYRIC_MIN_TOP_PADDING = 56.dp
+
+/** 视口底部至少留出这么多。 */
+private val LYRIC_MIN_BOTTOM_PADDING = 56.dp
+
+/** 估算最后一行占用的高度，用来算尾部内边距，让末行也能顶到焦点位置。 */
+private val LYRIC_TRAILING_LINE_HEIGHT = 72.dp
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -326,21 +361,25 @@ private fun LyricsPage(state: PlayerUiState, accent: Color) {
 
 @Composable
 private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color) {
-    val lyrics: Lyrics = result.lyrics ?: return
+    val lyrics = result.lyrics ?: return
     val fontScale = LocalLyricFontScale.current
     val spacing = LocalLyricSpacing.current.dp
     val lyricStyle = MaterialTheme.typography.bodyLarge.copy(
         fontSize = MaterialTheme.typography.bodyLarge.fontSize * fontScale,
         lineHeight = MaterialTheme.typography.bodyLarge.lineHeight * fontScale,
     )
-    val listState = rememberLazyListState()
     val actions = LocalPlayerActions.current
-    val activeIndex = if (lyrics.synced) lyrics.indexAt(positionMs) else -1
+    val density = LocalDensity.current
+
+    // 纯文本歌词没有时间轴：不做焦点动效，整篇一样亮。
+    val hasTimeline = lyrics.synced
+    val activeIndex = if (hasTimeline) lyrics.indexAt(positionMs) else -1
+    // 还没唱到第一句时，布局先锚在第一行
+    val focusIndex = if (activeIndex >= 0) activeIndex else 0
 
     // 点击瞬间短暂点亮的行；tick 用于每次点击都重新计时
     var flashIndex by remember { mutableIntStateOf(-1) }
     var flashTick by remember { mutableIntStateOf(0) }
-
     LaunchedEffect(flashTick) {
         if (flashTick > 0) {
             delay(FLASH_DURATION_MS)
@@ -348,9 +387,19 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
         }
     }
 
-    LaunchedEffect(activeIndex, lyrics) {
-        if (activeIndex >= 0) {
-            listState.animateScrollToItem(activeIndex)
+    val listState = rememberLazyListState()
+    val userDragging by listState.interactionSource.collectIsDraggedAsState()
+    val autoScrollShift = remember(listState) { LyricAutoScrollShift() }
+    // 换歌后重新做一次「不带动画的定位」，否则会从上一首的位置滑过去
+    var hasPositioned by remember(lyrics) { mutableStateOf(false) }
+    // 手动翻歌词时先让人读完，松手 2 秒后才回到当前行
+    var deferAutoScroll by remember { mutableStateOf(false) }
+    LaunchedEffect(userDragging) {
+        if (userDragging) {
+            deferAutoScroll = true
+        } else if (deferAutoScroll) {
+            delay(MANUAL_SCROLL_RECENTER_MS)
+            deferAutoScroll = false
         }
     }
 
@@ -361,35 +410,93 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
                 .weight(1f)
                 .fillMaxWidth(),
         ) {
-            val centerPadding = ((maxHeight - 72.dp) / 2).coerceAtLeast(0.dp)
+            val viewportPx = with(density) { maxHeight.toPx() }
+            val minTopPx = with(density) { LYRIC_MIN_TOP_PADDING.toPx() }
+            val focusOffsetPx = lyricFocusOffsetPx(viewportPx, minTopPx)
+            val focusOffsetDp = with(density) { focusOffsetPx.toDp() }
+            val trailingPaddingDp = with(density) {
+                lyricTrailingPaddingPx(
+                    viewportPx = viewportPx,
+                    focusOffsetPx = focusOffsetPx,
+                    trailingLinePx = with(density) { LYRIC_TRAILING_LINE_HEIGHT.toPx() },
+                    minBottomPx = with(density) { LYRIC_MIN_BOTTOM_PADDING.toPx() },
+                ).toDp()
+            }
+
+            // 焦点行停在视口 24% 处，不是正中。
+            //
+            // 关键：这里不插值滚动。布局直接 dispatchRawDelta 跳到目标位置，
+            // 再由每一行自己的弹簧把「视觉位置」从旧处追回来，并按行距错峰启动 ——
+            // 于是换行是一道自上而下的波浪，而不是整块文字一起平移。
+            LaunchedEffect(focusIndex, activeIndex, hasTimeline, userDragging, deferAutoScroll, focusOffsetPx) {
+                if (!hasTimeline || userDragging || deferAutoScroll) return@LaunchedEffect
+                // 视口还没测量出来时不要定位，否则焦点行会先落到页头顶部再弹回来
+                val viewport = snapshotFlow {
+                    listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+                }.filter { it > 0 }.first()
+                val desired = lyricFocusOffsetPx(viewport.toFloat(), minTopPx)
+                if (!hasPositioned) {
+                    listState.scrollToItem(focusIndex, 0)
+                    hasPositioned = true
+                    return@LaunchedEffect
+                }
+                repeat(LYRIC_SCROLL_CORRECTION_PASSES) {
+                    val items = listState.layoutInfo.visibleItemsInfo
+                    if (items.isEmpty()) return@repeat
+                    val target = items.firstOrNull { it.index == focusIndex }
+                    if (target == null) {
+                        // 目标行不在视口内（跳转跨度大）：直接落位，下一轮确认
+                        listState.scrollToItem(focusIndex, 0)
+                    } else {
+                        val delta = target.offset - desired
+                        if (abs(delta) <= LYRIC_SCROLL_THRESHOLD_PX) return@LaunchedEffect
+                        if (!listState.isScrollInProgress) {
+                            autoScrollShift.record(delta)
+                            listState.dispatchRawDelta(delta)
+                        }
+                    }
+                    withFrameNanos { }
+                }
+            }
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = centerPadding),
+                contentPadding = PaddingValues(
+                    start = 24.dp,
+                    end = 24.dp,
+                    top = focusOffsetDp,
+                    bottom = trailingPaddingDp,
+                ),
             ) {
-                itemsIndexed(lyrics.lines) { index, line ->
-                    val active = index == activeIndex
+                itemsIndexed(
+                    items = lyrics.lines,
+                    key = { index, line -> "lyric-$index-${line.timeMs}" },
+                ) { index, line ->
+                    val active = hasTimeline && index == activeIndex
                     val flashing = index == flashIndex
-                    // 当前行平滑放大：只作用在绘制层（graphicsLayer），不参与测量，
-                    // 所以 LazyColumn 不会重新排版，行距和相邻行都不动。
+                    val distance = if (hasTimeline) (index - focusIndex).coerceIn(-4, 4) else 0
+                    // 焦点行不放大，只把其它行缩小 —— 与参考实现一致：
+                    // 放大焦点行会改变这一行的测量高度，LazyColumn 必须重新排版，滚动就顿了。
                     val scale by animateFloatAsState(
-                        targetValue = if (active) LYRIC_ACTIVE_SCALE else 1f,
-                        animationSpec = tween(
-                            durationMillis = 420,
-                            easing = FastOutSlowInEasing,
-                        ),
+                        targetValue = if (!hasTimeline || active) LYRIC_FOCUS_SCALE else LYRIC_IDLE_SCALE,
+                        animationSpec = tween(durationMillis = LYRIC_MOTION_MS, easing = LyricMotionEasing),
                         label = "lyricScale",
                     )
-                    // 当前行只用「主题色 + 半粗」区分，不再有任何边框/底色；
-                    // 其它行降低透明度形成对比。
+                    // 焦点行 1.0，其余按行距递减到 0.13：越远越淡，层次由这一个值统一控制
+                    val lineAlpha by animateFloatAsState(
+                        targetValue = if (!hasTimeline || active) 1f else lyricLineAlpha(distance, false),
+                        animationSpec = tween(durationMillis = LYRIC_MOTION_MS, easing = LyricMotionEasing),
+                        label = "lyricAlpha",
+                    )
                     val color by animateColorAsState(
-                        // 高亮色跟随播放控件主色（本版本为封面取色的 accent）
                         targetValue = when {
                             flashing -> MaterialTheme.colorScheme.onSurface
                             active -> accent
-                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                            hasTimeline -> MaterialTheme.colorScheme.onSurface
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        animationSpec = tween(durationMillis = if (flashing) 80 else 260),
+                        animationSpec = tween(durationMillis = if (flashing) 80 else LYRIC_MOTION_MS),
                         label = "lyricColor",
                     )
                     // 点击时短暂亮起的一层柔光，随后淡出恢复原状
@@ -398,16 +505,33 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
                         animationSpec = tween(durationMillis = if (flashing) 70 else 380),
                         label = "lyricFlash",
                     )
+                    // 只有离焦点行两行开外的行才模糊；手动拖动时全部保持清晰
+                    val blurDp = if (hasTimeline && !active && !userDragging) {
+                        lyricLineBlurDp(distance, LYRIC_BLUR_PERCENT)
+                    } else {
+                        0f
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp)
+                            // 每行自己追布局位置：布局瞬移，视觉滑过去
+                            .lyricRowMotion(
+                                targetY = {
+                                    listState.layoutInfo.visibleItemsInfo
+                                        .firstOrNull { it.key == "lyric-$index-${line.timeMs}" }
+                                        ?.offset?.toFloat()
+                                },
+                                enabled = hasTimeline && !userDragging,
+                                distance = distance,
+                                maxTravelPx = viewportPx,
+                                enterShift = autoScrollShift,
+                            )
                             .clip(RoundedCornerShape(10.dp))
                             .background(accent.copy(alpha = 0.16f * flashAlpha))
                             // 关掉默认水波纹（整行的涟漪看起来就像一块大色块），
                             // 点击反馈统一由上面的短暂点亮承担
                             .clickable(
-                                enabled = lyrics.synced,
+                                enabled = hasTimeline,
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                             ) {
@@ -429,9 +553,11 @@ private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color)
                                 .graphicsLayer {
                                     scaleX = scale
                                     scaleY = scale
-                                    // 左对齐：以左边缘中点为中心放大，视线不会被往右推
+                                    alpha = lineAlpha
+                                    // 左对齐：以左边缘中点为中心缩放，视线不会被往右推
                                     transformOrigin = TransformOrigin(0f, 0.5f)
-                                },
+                                }
+                                .then(if (blurDp > 0f) Modifier.blur(blurDp.dp) else Modifier),
                         )
                     }
                 }

@@ -12,7 +12,7 @@
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.2--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.4--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -48,8 +48,9 @@
    进度条、迷你播放器和歌词高亮 —— 全部同色，换歌即换色。
 2. **不用手动准备歌词和封面。** 手机里那些从各处下载来的 MP3，一半没有 ID3 标签、没有封面、
    没有歌词。播放器自己去 QQ 音乐、iTunes、LRCLIB 找，找到就缓存，下次不再联网。
-3. **界面别抢戏。** 歌词左对齐、点击瞬亮 0.4 秒后淡出、当前行平滑放大 10%（只改绘制矩阵，
-   不参与布局，绝不跳行）。没有花哨的色块和边框。
+3. **界面别抢戏。** 歌词左对齐、点击瞬亮 0.4 秒后淡出；当前行停在视口 **24%** 处不再动，
+   换行时各行按距离错峰追上去，形成一道自上而下的波浪，远处的行渐淡并轻微虚化。
+   所有缩放只改绘制矩阵，不参与布局，绝不跳行。
 
 ## 功能
 
@@ -81,7 +82,7 @@ flowchart LR
     H -->|命中| G
     H -->|没搜到| E
     G --> I[写 cacheDir/lyrics/ 缓存]
-    I --> J[逐行滚动 + 当前行放大]
+    I --> J[逐行波浪滚动 + 焦点行分层]
 ```
 
 **封面**：任何一步命中就停，绝不为了"更好看"重复联网。
@@ -127,7 +128,7 @@ cd MelodyRetro
 装到手机（首次启动需要授予「音乐和音频」权限）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.4-release.apk
 ```
 
 > Release 包用的是 **debug 签名**，目的是能直接装上体验。要正式分发请换成你自己的 keystore。
@@ -207,6 +208,22 @@ KSP/Realm 的传统 View + XML 架构，代码无法直接复用，本仓库**�
 
 感谢 RetroMusicPlayer 的作者与所有贡献者 —— 这套设计语言值得被单独做一次实现。
 
+### 歌词动效
+
+歌词页的焦点行滚动与层级参考了 **[Kifranei/Halcyon](https://github.com/Kifranei/Halcyon)**（Apache-2.0）：
+
+| 本仓库文件 | 上游来源 |
+| --- | --- |
+| `ui/components/LyricFocusMotion.kt` | `ui/player/ReferenceLyricMotion.kt` |
+| `ui/screens/NowPlayingScreen.kt` 的 `LyricsContent` | `ui/player/AppleMusicLyricsView.kt` + `AppleMusicLyricLine.kt` |
+
+移植的是**算法与数值**：闭式弹簧参数、`CubicBezier(.4, .1, 0, 1)` 曲线、45ms→450ms 的过渡时长、
+按行距 30ms 错峰、「布局瞬移 + 逐行弹簧」的滚动模型，以及 1.0 / 0.98 的缩放与
+0.24→0.13 的透明度层级。差异在于：本项目没有逐字时间轴，所以不做逐字抬起与卡拉 OK 填充，
+焦点行的高亮色沿用封面取色的主题色而不是单一正文色。
+
+Halcyon 以 Apache License 2.0 发布，其署名与许可声明按该许可证要求保留在源文件头部。
+
 ## 许可证
 
 本项目**以 [GPL-3.0](LICENSE) 开源**，与 RetroMusicPlayer 保持一致。
@@ -237,6 +254,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 7 · 2.4.2-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 9 · 2.4.4-retro</sub>
 
 </div>

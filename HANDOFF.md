@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.2-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.4-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.4.2-retro (versionCode 7) |
+| 版本 | 2.4.4-retro (versionCode 9) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.4-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -179,7 +179,8 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 旧负缓存 | `index.json` 的 `version` 已升到 **2**；读到旧版本必须丢弃 `misses`，否则"曾经没搜到"会让那首歌 7 天不再尝试 |
 | CDN 灰图 | QQ 音乐对不存在的专辑有时返回 200 + 一张灰色默认图。必须校验 content-type + 体积(6KB~4MB) + 魔数(JPEG/PNG/WebP) |
 | `Slider` 自定义 thumb | 需要 `@OptIn(ExperimentalMaterial3Api::class)` |
-| 布局跳动 | 歌词放大动画**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
+| 布局跳动 | 歌词的缩放/透明度**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
+| 歌词换行卡顿 | 别用 `animateScrollToItem` 让整块文字平移（节奏由跨行数决定，忽快忽慢）。改成布局 `dispatchRawDelta` 瞬移 + 每行 `Modifier.lyricRowMotion` 弹簧追上来，才有波浪 |
 | 取色死黑 | `Palette` 要优先 `vibrant` 而不是 `dominant`，否则大面积黑封面的专辑会得到一片黑 |
 
 ---
@@ -223,7 +224,8 @@ README 重写为自洽的单项目文档。
 **待真机确认**（用户还没反馈）：
 
 - [ ] 无标签 MP3 的封面能否补上；列表/播放页显示的歌名是否正确
-- [ ] 歌词当前行放大 1.10× 是否顺滑、有没有跳行
+- [ ] 歌词焦点行是否稳定停在视口 24% 处、换行有没有波浪感、远处行的模糊是否过重
+- [ ] 手动拖动歌词时是否跟手、松手 2 秒后是否回到当前行
 - [ ] 歌曲信息一行（`FLAC • 24-bit • 1411 kb/s • 48 kHz`）在歌手名下方是否成图
 - [ ] 封面取色驱动的渐变/按钮/迷你播放器颜色是否跟着换歌一起变
 
@@ -251,7 +253,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.4.2-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.4.4-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

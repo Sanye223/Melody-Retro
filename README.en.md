@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.2--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.4.4--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-57%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -45,9 +45,11 @@ exist or don't scroll. Three things here are deliberately different:
 2. **You don't hand-curate lyrics and art.** Files ripped from wherever usually ship without ID3
    tags, without embedded art, without lyrics. The app goes out and finds them, scores the matches,
    caches the winners, and never asks again.
-3. **The UI stays out of the way.** Lyrics are left-aligned. Tap one and it flashes for 0.4s, then
-   fades. The active line scales to 1.10× — `graphicsLayer` only, so it never re-measures and never
-   makes the list jump.
+3. **The UI stays out of the way.** Lyrics are left-aligned; tap one and it flashes for 0.4s, then
+   fades. The focus line sits at 24% of the viewport and holds still — when the song moves on, each
+   row springs to its new spot on its own, staggered by distance, so you get a wave instead of a
+   block of text sliding. Distant rows fade and blur out slightly. All of it is `graphicsLayer`, so
+   nothing ever re-measures and the list never jumps.
 
 ## Features
 
@@ -80,7 +82,7 @@ flowchart LR
     H -->|hit| G
     H -->|miss| E
     G --> I["Cache to cacheDir/lyrics/"]
-    I --> J[Auto-scroll + active line scales]
+    I --> J[Per-row spring wave + focus hierarchy]
 ```
 
 **Cover art.** First hit wins. No "let me double-check with another source" — that's how you get
@@ -127,7 +129,7 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.2-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.4.4-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
@@ -211,6 +213,21 @@ code was lifted — what's shared is the design spec and the layout numbers.
 Hat tip to the RetroMusicPlayer authors and contributors. This design language deserved its own
 Compose implementation.
 
+### Lyrics motion
+
+The focus-line scrolling and the hierarchy around it are ported from
+**[Kifranei/Halcyon](https://github.com/Kifranei/Halcyon)** (Apache-2.0): `ui/components/LyricFocusMotion.kt`
+comes from its `ReferenceLyricMotion.kt`, and `LyricsContent` from `AppleMusicLyricsView.kt` +
+`AppleMusicLyricLine.kt`.
+
+What's carried over is the algorithm and the numbers — the closed-form spring, the
+`CubicBezier(.4, .1, 0, 1)` curve, the 30ms-per-row stagger, the "jump the layout, let each row
+spring after it" scroll model, plus the 1.0 / 0.98 scale and 0.24→0.13 alpha ladder. What isn't:
+we have no per-word timing, so there's no word lift or karaoke fill, and the focus line takes the
+cover-derived accent instead of a single flat content colour.
+
+Apache-2.0 wants its notice kept, so the attribution sits at the top of the ported file.
+
 ## License
 
 **GPL-3.0**, same as upstream.
@@ -231,6 +248,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 7 · 2.4.2-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 9 · 2.4.4-retro</sub>
 
 </div>
