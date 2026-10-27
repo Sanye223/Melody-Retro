@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.9--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.5.0--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-113%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -30,7 +30,7 @@ pulled from the cover art of whatever's playing.
 | **Why** | Half your library has no lyrics, no cover art, no tags. This one goes and gets them. |
 | **How** | `MediaStore` + Media3/ExoPlayer, Compose UI, zero backend, no account |
 | **Stack** | Kotlin 2.0.21 · `compileSdk 35` · `minSdk 24` |
-| **State** | 57 unit tests green, 6 of them hit live endpoints |
+| **State** | 113 unit tests green, 6 of them hit live endpoints |
 
 No telemetry. Two network switches, both off = zero requests.
 
@@ -51,8 +51,9 @@ exist or don't scroll. Three things here are deliberately different:
    block of text sliding. Distant rows fade and blur out slightly. All of it is `graphicsLayer`, so
    nothing ever re-measures and the list never jumps.
 4. **One swipe each way.** Pull the player down to collapse it; flick the mini player up to expand.
-   The page scales out of the bottom bar and its top edge tracks your finger pixel-for-pixel.
-   Distance + velocity decide where it lands — playback keeps running the whole time.
+   The whole panel just translates — no scaling, no squashing — its top edge tracking your finger
+   pixel-for-pixel, cross-fading into the mini player at the tail end. Distance + velocity decide
+   where it lands; playback never stops.
 
 ## Features
 
@@ -139,13 +140,13 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.9-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.5.0-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
 > install and poke at it. Swap in your own keystore before you distribute anything.
 
-Tests — 57 cases, 6 of which talk to real endpoints and `assumeTrue`-skip when offline:
+Tests — 113 cases, 6 of which talk to real endpoints and `assumeTrue`-skip when offline:
 
 ```bash
 ./gradlew.bat testDebugUnitTest
@@ -160,7 +161,7 @@ Tests — 57 cases, 6 of which talk to real endpoints and `assumeTrue`-skip when
 │   │   ├── data/       # MediaStore scan, artwork, lyrics, track info, DataStore
 │   │   ├── playback/   # MediaSessionService + PlayerManager
 │   │   └── ui/         # Compose. theme/RetroColors.kt is the artwork color extraction
-│   ├── app/src/test/   # 57 unit tests, incl. live smoke tests
+│   ├── app/src/test/   # 113 unit tests, incl. live smoke tests
 │   ├── tools/          # on-device verification script + sample audio
 │   └── dist/           # prebuilt APKs
 ├── tools/              # toolchain bootstrap + share-package builder
@@ -258,6 +259,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 14 · 2.4.9-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 15 · 2.5.0-retro</sub>
 
 </div>

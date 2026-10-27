@@ -13,7 +13,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.4.9--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.5.0--retro-1f6feb)
 ![Tests](https://img.shields.io/badge/tests-113%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
@@ -45,7 +45,7 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
 | **なぜ** | 手持ちの音源、歌詞もジャケットもタグも入っていないことがざら。それを勝手に取りに行きます |
 | **どう** | `MediaStore` + Media3/ExoPlayer、UI は Compose。サーバーなし、アカウントなし |
 | **環境** | Kotlin 2.0.21 / `compileSdk 35` / `minSdk 24` |
-| **状態** | ユニットテスト 57 件グリーン（うち 6 件は実際に外部 API を叩きます） |
+| **状態** | ユニットテスト 113 件グリーン（うち 6 件は実際に外部 API を叩きます） |
 
 テレメトリはありません。ネットワーク設定を 2 つとも OFF にすれば、リクエストはゼロです。
 
@@ -66,8 +66,9 @@ Android 向けのローカル音楽プレイヤーです。[RetroMusicPlayer](ht
    遠い行は薄くなり、少しぼけます。拡縮はすべて `graphicsLayer` だけなのでレイアウトは
    再計算されず、リストが飛ぶこともありません。
 4. **上下はスワイプ一発。** プレイヤーを下にスワイプすれば畳まれ、ミニプレイヤーを上に
-   スワイプすれば開きます。ページはボトムバーを原点に拡大し、上端は指にそのまま追従。
-   離した位置と速度で行き先が決まる。再生は止まりません。
+   スワイプすれば開きます。パネルごと平行移動するだけで、拡大も変形もしません。上端は指に
+   そのまま追従し、最後はミニプレイヤーとクロスフェード。離した位置と速度で行き先が決まり、
+   再生は止まりません。
 
 ## 機能
 
@@ -154,13 +155,13 @@ cd MelodyRetro
 実機へ（初回起動時に音声の権限を許可してください）：
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.9-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.5.0-release.apk
 ```
 
 > 注意：release ビルドは**わざと debug キーストアで署名**しています。すぐ入れて触れるようにするためです。
 > 配布する前に、自分のキーストアへ差し替えてください。
 
-テスト（57 件。うち 6 件は実際に外部 API を叩き、圏外なら `assumeTrue` でスキップします）：
+テスト（113 件。うち 6 件は実際に外部 API を叩き、圏外なら `assumeTrue` でスキップします）：
 
 ```bash
 ./gradlew.bat testDebugUnitTest
@@ -175,7 +176,7 @@ adb install -r MelodyRetro/dist/Melody-Retro-2.4.9-release.apk
 │   │   ├── data/       # MediaStore 走査、ジャケット、歌詞、曲情報、DataStore
 │   │   ├── playback/   # MediaSessionService + PlayerManager
 │   │   └── ui/         # Compose。theme/RetroColors.kt がジャケットからの色抽出
-│   ├── app/src/test/   # ユニットテスト 57 件（実通信のスモークテスト込み）
+│   ├── app/src/test/   # ユニットテスト 113 件（実通信のスモークテスト込み）
 │   ├── tools/          # 実機検証スクリプト + サンプル音源
 │   └── dist/           # ビルド済み APK
 ├── tools/              # 環境構築 + 共有パッケージ作成スクリプト
@@ -279,6 +280,6 @@ the Free Software Foundation, either version 3 of the License, or
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 14 · 2.4.9-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 15 · 2.5.0-retro</sub>
 
 </div>

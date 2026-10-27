@@ -3,7 +3,6 @@ package com.melody.player.ui.components
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -19,10 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -34,13 +30,20 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 /**
- * 播放页「抽屉」：把整块 NowPlaying 放在主界面之上，靠一个 0→1 的进度值上下滑。
+ * 播放页「抽屉」：把整块 NowPlaying 放在主界面之上，整块上下平移。
  *
- * - `progress = 0` 完全展开（贴住屏幕）
- * - `progress = 1` 完全收起（整块移出屏幕下沿，只剩迷你播放器）
+ * 模型完全对齐 RetroMusicPlayer 的 `AbsSlidingMusicPanelActivity`（Material `BottomSheetBehavior`）：
+ * 面板不是从某个点缩放开来的，而是一整块不透明的板子在 [translationY] 上滑动 ——
+ * 手指往下走多少，板子就往下走多少，跟手 1:1，过程中**不缩放、不变形**。
+ *
+ * - `progress = 0` 完全展开（贴住屏幕顶）
+ * - `progress = 1` 完全收起（面板退到「只剩底部栏那么高」的位置，剩余部分在屏幕下方）
+ *
+ * 收起时面板顶部那一条虽然还压在迷你播放器位置上，但 [sheetAlphaAt] 已把它淡成 0，
+ * 于是露出的正是下面的迷你播放器 —— 与 Retro 把 MiniPlayer 放进面板顶部、
+ * 再按 `1 - progress / 0.2f` 淡出是同一个观感。
  *
  * 手势与动画共用同一个 progress，所以手指松开的瞬间动画能从当前位置与速度接着走，
  * 不会「先跳回原位再播收起动画」——这是手感丝滑的关键。
@@ -52,21 +55,17 @@ internal const val SHEET_DISMISS_THRESHOLD = 0.32f
 /** 每秒越过屏幕高度的比例超过它时，按甩动方向直接定夺。 */
 internal const val SHEET_FLING_FRACTION = 0.9f
 
-/** 下层页面的最大压暗程度。 */
-private const val SHEET_SCRIM_ALPHA = 0.34f
-
-/** 拖动后的进度：向下拖（deltaY > 0）趋向收起。 */
-internal fun sheetProgressAfterDrag(current: Float, deltaY: Float, heightPx: Float): Float {
-    if (heightPx <= 0f) return current
-    return (current + deltaY / heightPx).coerceIn(0f, 1f)
-}
-
 /**
  * 松手后落到哪个锚点：1 = 收起，0 = 展开。
  *
  * 判定以**本次手势的起点**为准，而不是「屏幕一半」——
  * 从播放页往下拖 32% 就收起，从迷你播放器往上拖 32% 就展开，两个方向一样好使。
  */
+internal fun sheetProgressAfterDrag(current: Float, deltaY: Float, heightPx: Float): Float {
+    if (heightPx <= 0f) return current
+    return (current + deltaY / heightPx).coerceIn(0f, 1f)
+}
+
 internal fun sheetSettleTarget(
     current: Float,
     origin: Float,
@@ -81,28 +80,32 @@ internal fun sheetSettleTarget(
     return if (current > origin) 1f else 0f
 }
 
-/** 页面收起/展开过程中的圆角，完全展开时收敛到 0。 */
-private val SheetCornerRadius = 20.dp
+/** 面板下滑过程中顶部露出的圆角，展开后收敛到 0，重新变成整屏。 */
+private val SheetCornerRadius = 22.dp
 
-/** 尾段淡出的起点：缩到这一步时页面只剩一小块，直接融进迷你播放器。 */
-internal const val SHEET_FADE_START = 0.90f
+/** 面板浮在列表上方时的投影高度。 */
+private val SheetShadow = 22.dp
 
 /**
- * 页面在该进度下的缩放比例。
+ * 面板向下平移的距离（px）。
  *
- * 页面以**底部中心**为原点整体缩放，底边始终贴着屏幕底部，
- * 顶边落在 `progress × travelPx` 的高度上 —— 手指往上走多少，页面就长多少。
- * `progress = 1` 时页面正好缩成底部栏那么高，也就是迷你播放器本身，
- * 而不是「滑到屏幕外面只剩一条边」。
+ * `progress = 1` 时正好是 `height - bottomBar`：面板顶边落在底部栏顶边上，
+ * 也就是「板子整块退到屏幕下方，只留底部栏露在外面」。
  */
-internal fun sheetScaleAt(progress: Float, heightPx: Float, travelPx: Float): Float {
-    if (heightPx <= 0f) return 1f
-    val p = progress.coerceIn(0f, 1f)
-    val visible = heightPx - p * travelPx
-    return (visible / heightPx).coerceIn(0.02f, 1f)
-}
+internal fun sheetOffsetAt(progress: Float, travelPx: Float): Float =
+    progress.coerceIn(0f, 1f) * travelPx.coerceAtLeast(0f)
 
-/** 尾段透明度：1 → 0（smoothstep），让最后一小块「缩小版页面」不露出像素感。 */
+/**
+ * 尾段淡出的起点。
+ *
+ * 面板退到最后一段时已经盖住底部栏，这里让它一边继续下移一边淡出，
+ * 底部栏（迷你播放器）就跟着渐显出来 —— 等价于 Retro 里
+ * `miniPlayer.alpha = 1 - progress / 0.2f` 的交叉淡化，
+ * 这样上滑的第一段也有渐变反馈，不会「手指动了画面没动」。
+ */
+internal const val SHEET_FADE_START = 0.72f
+
+/** 尾段透明度：1 → 0（smoothstep）。 */
 internal fun sheetAlphaAt(progress: Float): Float {
     val p = progress.coerceIn(0f, 1f)
     if (p <= SHEET_FADE_START) return 1f
@@ -124,13 +127,10 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
     /** 屏幕高度（px），手势换算比例要用。 */
     internal var heightPx: Float = 0f
 
-    /**
-     * 底部栏高度（迷你播放器 + 导航栏）。收起时页面就缩到这么高 ——
-     * 也就是缩成迷你播放器本身，而不是滑到屏幕外面去。
-     */
+    /** 底部栏高度（迷你播放器 + 导航栏）。收起时面板就退到这么高。 */
     internal var bottomBarHeightPx: Float = 0f
 
-    /** 手势要走完的距离：从迷你播放器顶边推到屏幕顶端。 */
+    /** 手势要走完的距离：从贴住屏幕顶，到退成「只剩底部栏」。 */
     internal val travelPx: Float
         get() = (heightPx - bottomBarHeightPx).coerceAtLeast(1f)
 
@@ -146,29 +146,11 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
         if (gestureOrigin == null) {
             gestureOrigin = if (progress >= 0.5f) 1f else 0f
         }
-        // 用 travel 而不是整屏高度换算：手指走多远，页面就长多大，一一对应
+        // 用 travel 而不是整屏高度换算：手指走多远，板子就走多远，一一对应
         val next = sheetProgressAfterDrag(progress, deltaY, travelPx)
         if (next < 1f) isMounted = true
         progress = next
     }
-
-    /**
-     * 页面**内部**发来的位移（歌词列表、页面空白处的拖动）。
-     *
-     * 页面整体被 `graphicsLayer` 缩放过，Compose 报上来的位移是「缩放后的本地坐标」：
-     * 缩到 0.5 时手指走 10px，这里收到的是 20px。不还原的话，页面会比手指跑得快一倍。
-     */
-    fun dragByFromContent(deltaY: Float) {
-        dragBy(toScreenDelta(deltaY))
-    }
-
-    /** 页面内部的甩动速度同理，也要还原成屏幕坐标。 */
-    fun settleFromContent(scope: CoroutineScope, velocityPxPerSecond: Float) {
-        settle(scope, toScreenDelta(velocityPxPerSecond))
-    }
-
-    private fun toScreenDelta(value: Float): Float =
-        value * sheetScaleAt(progress, heightPx, travelPx).coerceIn(0.05f, 1f)
 
     /** 手指重新按下时掐掉上一段动画，避免「追着手指又被动画拽回去」。 */
     fun cancelMotion() {
@@ -210,7 +192,7 @@ class PlayerSheetState(initiallyOpen: Boolean = false) {
                     stiffness = Spring.StiffnessMediumLow,
                 ),
             ) { value, velocity ->
-                // 弹簧会轻微过冲，夹住以免露出页面外的空白
+                // 弹簧会轻微过冲，夹住以免面板超出两端
                 progress = value.coerceIn(0f, 1f)
                 velocity
             }
@@ -227,9 +209,8 @@ fun rememberPlayerSheetState(initiallyOpen: Boolean = false): PlayerSheetState =
 /** 由宿主注入的抽屉拖动能力：播放页内部各块不必知道抽屉怎么动。 */
 @Stable
 class PlayerSheetDrag(
-    /** [fromContent] = 手势来自被缩放的页面内部（位移是缩放后的本地坐标）。 */
-    val onDrag: (deltaY: Float, fromContent: Boolean) -> Unit,
-    val onEnd: (velocityY: Float, fromContent: Boolean) -> Unit,
+    val onDrag: (deltaY: Float) -> Unit,
+    val onEnd: (velocityY: Float) -> Unit,
 )
 
 val LocalPlayerSheetDrag = staticCompositionLocalOf<PlayerSheetDrag?> { null }
@@ -249,28 +230,20 @@ fun PlayerSheetOverlay(
         val scope = rememberCoroutineScope()
         val progress = state.progress
         val travel = state.travelPx
-        val scale = sheetScaleAt(progress, heightPx, travel)
-        val alpha = sheetAlphaAt(progress)
-        val corner = SheetCornerRadius * progress
 
-        // 下层页面压暗：页面张得越大越暗，缩回迷你播放器时恢复原亮度
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = SHEET_SCRIM_ALPHA * (1f - progress))),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                // 以底部中心为原点缩放：底边钉在屏幕底部，顶边跟着手指走。
-                // 用缩放而不是平移，页面才是「从迷你播放器长出来」，而不是「从屏幕下沿冒出来」。
+                // 整块平移：面板底部随之浮出屏幕，顶边跟着手指走，全程不变形。
+                // 顶部圆角与投影只在「浮起来」时出现，贴满屏幕时收敛到底。
                 .graphicsLayer {
-                    transformOrigin = TransformOrigin(0.5f, 1f)
-                    scaleX = scale
-                    scaleY = scale
-                    this.alpha = alpha
+                    translationY = sheetOffsetAt(progress, travel)
+                    alpha = sheetAlphaAt(progress)
+                    val radius = SheetCornerRadius.toPx() * progress
+                    shape = RoundedCornerShape(radius)
+                    clip = true
+                    shadowElevation = SheetShadow.toPx() * progress
                 }
-                .clip(RoundedCornerShape(corner))
                 .nestedScroll(
                     remember(state, scope) { sheetNestedScroll(state, scope) },
                 )
@@ -316,8 +289,7 @@ private fun sheetNestedScroll(
             if (source != NestedScrollSource.UserInput) return Offset.Zero
             if (available.y <= 0f) return Offset.Zero
             state.cancelMotion()
-            // 歌词列表也在被缩放的层里，位移同样是本地坐标
-            state.dragByFromContent(available.y)
+            state.dragBy(available.y)
             moved = true
             return Offset(0f, available.y)
         }
@@ -325,7 +297,7 @@ private fun sheetNestedScroll(
         override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
             if (!moved) return Velocity.Zero
             moved = false
-            state.settleFromContent(scope, available.y)
+            state.settle(scope, available.y)
             return Velocity(0f, available.y)
         }
     }

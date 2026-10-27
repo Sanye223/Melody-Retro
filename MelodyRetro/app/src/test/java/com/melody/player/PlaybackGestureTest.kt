@@ -4,7 +4,7 @@ import com.melody.player.ui.components.SHEET_DISMISS_THRESHOLD
 import com.melody.player.ui.components.SHEET_FADE_START
 import com.melody.player.ui.components.sheetAlphaAt
 import com.melody.player.ui.components.sheetProgressAfterDrag
-import com.melody.player.ui.components.sheetScaleAt
+import com.melody.player.ui.components.sheetOffsetAt
 import com.melody.player.ui.components.sheetSettleTarget
 import com.melody.player.ui.screens.seekProgressAtX
 import com.melody.player.ui.screens.seekThumbCenterX
@@ -111,7 +111,7 @@ class PlaybackGestureTest {
         assertEquals(1f, sheetSettleTarget(0.05f, 0f, 3000f, height), 0f)
     }
 
-    // ------------------------------------------------------------------ 收起时的形变
+    // ------------------------------------------------------------------ 收起时的位移
 
     private val screen = 2000f
     private val bar = 220f                    // 迷你播放器 + 导航栏
@@ -119,34 +119,35 @@ class PlaybackGestureTest {
 
     @Test
     fun `展开状态铺满屏幕`() {
-        assertEquals(1f, sheetScaleAt(0f, screen, travel), 0.0001f)
+        assertEquals(0f, sheetOffsetAt(0f, travel), 0.0001f)
         assertEquals(1f, sheetAlphaAt(0f), 0f)
     }
 
     @Test
-    fun `收起状态正好缩成底部栏那么高`() {
-        val barFraction = bar / screen
-        assertEquals(barFraction, sheetScaleAt(1f, screen, travel), 0.0001f)
+    fun `收起状态正好退到底部栏上沿`() {
+        // 面板整块下移 travel 后，顶边落在底部栏顶边上：
+        // 屏幕底部只剩底部栏（迷你播放器），面板其余部分都在屏幕下方
+        val offset = sheetOffsetAt(1f, travel)
+        assertEquals(travel, offset, 0.0001f)
+        assertEquals(bar, screen - offset, 0.0001f)
     }
 
     @Test
-    fun `页面顶边始终跟着手指走`() {
-        // 缩放原点在底部中心，所以顶边 = 高度 ×（1 − 缩放）；
-        // 它必须等于 progress × travel，手指走多远页面就长多少
+    fun `面板顶边始终跟着手指走`() {
+        // 纯平移：手指走多远，面板顶边就走多远，1:1 不放大不缩小
         for (step in 0..10) {
             val progress = step / 10f
-            val topEdge = screen * (1f - sheetScaleAt(progress, screen, travel))
-            assertEquals(progress * travel, topEdge, 0.5f)
+            assertEquals(progress * travel, sheetOffsetAt(progress, travel), 0.5f)
         }
     }
 
     @Test
-    fun `缩放随进度单调收小`() {
-        var previous = 2f
+    fun `平移随进度单调下移`() {
+        var previous = -1f
         for (step in 0..10) {
-            val scale = sheetScaleAt(step / 10f, screen, travel)
-            assertTrue("第 $step 档不应该变大：$scale >= $previous", scale < previous)
-            previous = scale
+            val offset = sheetOffsetAt(step / 10f, travel)
+            assertTrue("第 $step 档不应该回退：$offset <= $previous", offset > previous)
+            previous = offset
         }
     }
 
@@ -158,7 +159,9 @@ class PlaybackGestureTest {
     }
 
     @Test
-    fun `高度还没量出来时不缩放`() {
-        assertEquals(1f, sheetScaleAt(0.5f, 0f, travel), 0f)
+    fun `高度还没量出来时不偏移`() {
+        assertEquals(0f, sheetOffsetAt(0.5f, 0f), 0f)
+        // 进度本身也夹在 0..1，越界的值不应该把面板推到屏幕外
+        assertEquals(travel, sheetOffsetAt(3f, travel), 0.0001f)
     }
 }

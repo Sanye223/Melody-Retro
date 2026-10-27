@@ -161,16 +161,8 @@ fun AppRoot(settings: AppSettings) {
     val sheetState = rememberPlayerSheetState()
     val sheetDrag = remember(sheetState, scope) {
         PlayerSheetDrag(
-            onDrag = { deltaY, fromContent ->
-                if (fromContent) sheetState.dragByFromContent(deltaY) else sheetState.dragBy(deltaY)
-            },
-            onEnd = { velocity, fromContent ->
-                if (fromContent) {
-                    sheetState.settleFromContent(scope, velocity)
-                } else {
-                    sheetState.settle(scope, velocity)
-                }
-            },
+            onDrag = { deltaY -> sheetState.dragBy(deltaY) },
+            onEnd = { velocity -> sheetState.settle(scope, velocity) },
         )
     }
 

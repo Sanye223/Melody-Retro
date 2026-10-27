@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.4.9-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.5.0-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名 | Melody Retro |
 | applicationId | `com.melody.retro` |
 | namespace | `com.melody.player`（历史原因保留，见下） |
-| 版本 | 2.4.9-retro (versionCode 14) |
+| 版本 | 2.5.0-retro (versionCode 15) |
 | 支持 | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.4.9-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.5.0-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -190,8 +190,9 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 布局跳动 | 歌词的缩放/透明度**只能加在 `graphicsLayer`**，一旦改 `fontSize` 参与测量，`LazyColumn` 会重排、行会跳 |
 | 歌词换行卡顿 | 别用 `animateScrollToItem` 让整块文字平移（节奏由跨行数决定，忽快忽慢）。改成布局 `dispatchRawDelta` 瞬移 + 每行 `Modifier.lyricRowMotion` 弹簧追上来，才有波浪 |
 | 播放页不能做成导航目的地 | 做 `NavHost` 目的地时，退出动画开始前下层页面已被拆掉，下滑收起会露出空白。必须做成盖在主界面上的抽屉（`PlayerSheetOverlay`），手势位移与收起动画共用同一个 `progress`，否则「松手 → 跳回原位 → 再播动画」 |
-| 上下滑「不跟手」 | 纯平移做不到跟手：页面从屏幕下沿冒出，顶边永远比手指低一个底部栏的高度。改成**以底部中心缩放**：底边钉住，顶边 = `progress × travel`，`travel` 是量出来的底部栏之上的高度。收起点正好是迷你播放器本身 |
-| 缩放层里的手势位移 | `graphicsLayer` 缩放过之后，Compose 报的拖动位移是**本地坐标**（缩到 0.5 时手指走 10px 报 20px）。缩放的页面内部手势必须 `× scale` 还原成屏幕位移，否则页面跑得比手指快 |
+| 上下滑用哪套动画 | 对齐 RetroMusicPlayer 的 `BottomSheetBehavior`：**整块面板做 `translationY` 平移**，`offset = progress × (屏幕高 − 底部栏高)`，全程不缩放不变形，1:1 跟手。尾段（`SHEET_FADE_START = 0.72`）淡出，底部栏交叉显出来 |
+| 别用「从点击处缩放生长」 | 2.4.9 试过以底部中心缩放（缩到迷你播放器那么大），观感是页面在变形，且缩到 0.5 时手势位移要 `× scale` 还原，容易踩坑。用户否决，已回退为平移 |
+| 缩放层里的手势位移 | 若将来又给面板加 `graphicsLayer` 缩放，拖动位移是**本地坐标**（缩到 0.5 时手指走 10px 报 20px），必须 `× scale` 还原。当前面板只有平移，不需要换算 |
 | 进度条圆点跑偏 / 两端被裁 | 别用 `Slider` 的 `thumb` / `track` 槽位拼（M3 1.3 里自定义 track 高度会让拇指不居中对齐）。进度条改为自绘 `Canvas`，且**两端各留一个拇指半径的 inset**，`seekProgressAtX` / `seekThumbCenterX` 用同一套换算才拖得准 |
 | 歌词里露出 `<00:00.245>` | 那是**增强型 LRC 的逐字时间标签**（QQ 下载的曲子常见）。行级 `[mm:ss.xx]` 与逐字 `<mm:ss.xxx>` 都要从正文里剥掉；整行没有行级标签时，取**第一个**逐字标签当行时间（全取会一行拆成几十行） |
 | 取色死黑 | `Palette` 要优先 `vibrant` 而不是 `dominant`，否则大面积黑封面的专辑会得到一片黑 |
@@ -271,7 +272,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置 | 内容 |
 | --- | --- |
-| `MelodyRetro/dist/Melody-Retro-2.4.9-{debug,release}.apk` | 当前版本 |
+| `MelodyRetro/dist/Melody-Retro-2.5.0-{debug,release}.apk` | 当前版本 |
 | `backup/2026-10-27_retro-2.3.0/` | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`

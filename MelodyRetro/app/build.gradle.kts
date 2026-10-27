@@ -12,8 +12,8 @@ android {
         applicationId = "com.melody.retro"
         minSdk = 24
         targetSdk = 35
-        versionCode = 14
-        versionName = "2.4.9-retro"
+        versionCode = 15
+        versionName = "2.5.0-retro"
         vectorDrawables { useSupportLibrary = true }
     }
 
