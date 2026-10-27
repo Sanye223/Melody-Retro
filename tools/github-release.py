@@ -50,7 +50,7 @@ BODY = """纯本地 Android 音乐播放器，视觉语言参考 [RetroMusicPlay
 
 ## 致谢
 
-设计规范与交互参考 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer)（GPL-3.0），歌词动效参考 [Kifranei/Halcyon](https://github.com/Kifranei/Halcyone)（Apache-2.0）。
+设计规范与交互参考 [RetroMusicPlayer](https://github.com/RetroMusicPlayer/RetroMusicPlayer)（GPL-3.0），歌词动效参考 [Kifranei/Halcyon](https://github.com/Kifranei/Halcyon)（Apache-2.0）。
 """
 
 
