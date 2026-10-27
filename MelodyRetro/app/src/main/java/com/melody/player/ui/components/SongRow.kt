@@ -45,7 +45,8 @@ fun SongRow(
         AlbumArt(
             albumId = track.albumId,
             modifier = Modifier.size(52.dp),
-            shape = RoundedCornerShape(14.dp),
+            // 圆角梯度：小缩略图 12 / 网格卡片 16 / 大图 24，全套统一按尺寸走
+            shape = RoundedCornerShape(12.dp),
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(

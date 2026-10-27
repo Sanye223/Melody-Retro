@@ -32,6 +32,10 @@ import com.melody.player.ui.NoInsets
 import com.melody.player.ui.components.AlbumArt
 import com.melody.player.ui.components.EmptyState
 import com.melody.player.ui.components.LoadingState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,6 +53,12 @@ fun ArtistsScreen(
         topBar = {
             LargeTopAppBar(
                 title = { Text("艺术家") },
+                // 与歌曲页保持一致：重扫入口常驻在顶栏，不用等空状态才出现
+                actions = {
+                    IconButton(onClick = onRescan) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = "重新扫描")
+                    }
+                },
                 scrollBehavior = scrollBehavior,
             )
         },

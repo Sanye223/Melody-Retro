@@ -136,12 +136,14 @@ fun MiniPlayer(
 
         // 顶部极细进度：Retro 本身没有，保留它让进度一眼可见。
         // 叠在内容上而不是占位，整条高度才是精确的 MiniPlayerHeight。
+        // 轨道本身兼作「内容区 / 播放条」的分界线，所以要比纯进度条更明显一点：
+        // 16% 白在深色下几乎看不见，播放条就像凭空贴在列表上。
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(1.5.dp)
-                .background(foreground.copy(alpha = 0.16f)),
+                .height(2.dp)
+                .background(foreground.copy(alpha = 0.22f)),
         ) {
             Box(
                 modifier = Modifier

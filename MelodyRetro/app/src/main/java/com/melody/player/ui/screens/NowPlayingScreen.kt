@@ -37,6 +37,7 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Cloud
 import androidx.compose.material.icons.rounded.Notes
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -295,7 +296,8 @@ fun NowPlayingScreen(onBack: () -> Unit) {
 
 @Composable
 private fun ArtworkPage(current: NowPlaying) {
-    val shape = RoundedCornerShape(16.dp)
+    // 圆角梯度：小缩略图 12 / 网格卡片 16 / 大图 24，与详情页封面保持一致
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -638,28 +640,24 @@ private fun LyricsSourceBadge(result: LyricsResult) {
             .fillMaxWidth()
             .padding(top = 8.dp),
         horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Surface(
-            shape = RoundedCornerShape(50),
-            color = if (result.source == LyricsSource.ONLINE) {
-                MaterialTheme.colorScheme.secondaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            },
-        ) {
-            Text(
-                text = label + hint,
-                style = MaterialTheme.typography.labelSmall,
-                color = if (result.source == LyricsSource.ONLINE) {
-                    MaterialTheme.colorScheme.onSecondaryContainer
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-            )
-        }
+        // 原来是个灰底胶囊，在深色渐变上发脏、又比歌词本身更抢眼；
+        // 改成一行 11sp 的轻量说明，信息还在，但退回背景层。
+        Icon(
+            imageVector = if (result.source == LyricsSource.ONLINE) Icons.Rounded.Cloud else Icons.Rounded.Notes,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            modifier = Modifier.size(13.dp),
+        )
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = label + hint,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
