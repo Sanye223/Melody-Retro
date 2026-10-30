@@ -17,7 +17,7 @@ $ErrorActionPreference = 'Stop'
 $root    = Split-Path -Parent $PSScriptRoot
 $share   = Join-Path $root 'share'
 $staging = Join-Path $share '_staging'
-$version = '2.11.3'
+$version = '2.11.4'
 $stamp   = Get-Date -Format 'yyyyMMdd'
 $zipPath = Join-Path $share "Melody-Retro-$version-$stamp.zip"
 

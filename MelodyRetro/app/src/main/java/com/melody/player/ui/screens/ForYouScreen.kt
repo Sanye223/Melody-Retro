@@ -531,10 +531,16 @@ private fun SuggestionGrid(
 
 @Composable
 private fun SectionHeader(title: String, onMore: (() -> Unit)? = null) {
+    // 整条标题栏都可点（标题、箭头、中间空白），对齐上游：那里点分组标题就进列表页。
+    // 只让箭头能点的话，手指经常落在标题上、以为"点不进去"。
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = onMore != null) { onMore?.invoke() }
+            // 内层再补 8dp，视觉上仍是 16dp 边距，但 ripple 是带圆角的整块
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -547,10 +553,7 @@ private fun SectionHeader(title: String, onMore: (() -> Unit)? = null) {
             imageVector = Icons.Rounded.ArrowForward,
             contentDescription = "查看全部",
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .clip(CircleShape)
-                .clickable { onMore?.invoke() }
-                .padding(6.dp),
+            modifier = Modifier.padding(6.dp),
         )
     }
 }
