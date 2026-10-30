@@ -39,6 +39,9 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import com.melody.player.ui.LocalFavoriteIds
 import com.melody.player.ui.LocalToggleFavorite
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.melody.player.playback.PlayerManager
 
 /**
  * 迷你播放器的高度。抽屉收起时面板退到「底部栏顶边」，面板顶部这一条正好是这么高 ——
@@ -73,11 +76,6 @@ fun MiniPlayer(
         label = "miniForeground",
     )
     val secondary = foreground.copy(alpha = 0.62f)
-    val progress = if (state.durationMs > 0L) {
-        (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
     val interaction = remember { MutableInteractionSource() }
 
     Box(
@@ -156,19 +154,40 @@ fun MiniPlayer(
         // 叠在内容上而不是占位，整条高度才是精确的 MiniPlayerHeight。
         // 轨道本身兼作「内容区 / 播放条」的分界线，所以要比纯进度条更明显一点：
         // 16% 白在深色下几乎看不见，播放条就像凭空贴在列表上。
+        MiniProgressBar(
+            durationMs = state.durationMs,
+            trackColor = foreground.copy(alpha = 0.22f),
+            barColor = colors.accent,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+    }
+}
+
+/** 迷你播放器的顶部进度条：自己订阅播放进度，避免整条播放条跟着每秒重组。 */
+@Composable
+private fun MiniProgressBar(
+    durationMs: Long,
+    trackColor: Color,
+    barColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val positionMs by PlayerManager.position.collectAsStateWithLifecycle()
+    val progress = if (durationMs > 0L) {
+        (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(2.dp)
+            .background(trackColor),
+    ) {
         Box(
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(2.dp)
-                .background(foreground.copy(alpha = 0.22f)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(progress)
-                    .fillMaxHeight()
-                    .background(colors.accent),
-            )
-        }
+                .fillMaxWidth(progress)
+                .fillMaxHeight()
+                .background(barColor),
+        )
     }
 }

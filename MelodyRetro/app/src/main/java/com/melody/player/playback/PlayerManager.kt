@@ -107,6 +107,16 @@ object PlayerManager {
     private val _state = MutableStateFlow(PlayerUiState())
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
 
+    /**
+     * 播放进度单独走一条流。
+     *
+     * 之前 positionMs 混在 [PlayerUiState] 里，ticker 每 250ms 更新一次 state，
+     * 所有订阅 state 的页面（歌曲列表、专辑、For you…）被迫每秒重组 4 次，
+     * 播放态 CPU 高达 25%（内存采样见 HANDOFF）。拆出来后只有进度条 / 歌词订阅它。
+     */
+    private val _position = MutableStateFlow(0L)
+    val position: StateFlow<Long> = _position.asStateFlow()
+
     fun init(context: Context) {
         if (::appContext.isInitialized) return
         appContext = context.applicationContext
@@ -148,16 +158,15 @@ object PlayerManager {
         if (ticker?.isActive == true) return
         ticker = scope.launch {
             while (isActive) {
-                controller?.let { c ->
-                    _state.update {
-                        it.copy(
-                            positionMs = c.currentPosition.coerceAtLeast(0L),
-                            isPlaying = c.isPlaying,
-                            durationMs = if (c.duration > 0) c.duration else it.durationMs,
-                        )
-                    }
+                val c = controller
+                if (c != null && c.isPlaying) {
+                    // 只写进度这条流，不碰 _state —— 列表页不会被顺带重组
+                    _position.value = c.currentPosition.coerceAtLeast(0L)
+                    delay(250L)
+                } else {
+                    // 暂停 / 未连接：不刷新进度，慢速空转等下一次播放
+                    delay(500L)
                 }
-                delay(250L)
             }
         }
     }
@@ -183,6 +192,8 @@ object PlayerManager {
                 durationMs = metadata?.durationMs?.takeIf { it > 0L } ?: fallback?.durationMs ?: 0L,
             )
         }
+        _position.value = player.currentPosition.coerceAtLeast(0L)
+
         val duration = player.duration
         val metaDuration = metadata?.durationMs ?: fallback?.durationMs ?: 0L
 
