@@ -50,8 +50,9 @@ Copy-Item (Join-Path $PSScriptRoot 'setup-buildtools.ps1') (Join-Path $staging '
 Copy-Item (Join-Path $PSScriptRoot 'pack-share.ps1')        (Join-Path $staging 'tools')
 
 # prebuilt APK so the other machine can install without building anything
+# 路径跟着 $version 走 —— 写死版本号会漏掉新包（曾发生过：打成 0.3 MB 的空包）
 $apks = @(
-    @{ Src = 'MelodyRetro\dist\Melody-Retro-2.11.1-release.apk'; Name = 'Melody-Retro-2.11.1-release.apk' }
+    @{ Src = "MelodyRetro\dist\Melody-Retro-$version-release.apk"; Name = "Melody-Retro-$version-release.apk" }
 )
 foreach ($a in $apks) {
     $p = Join-Path $root $a.Src
