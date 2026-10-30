@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import androidx.activity.compose.BackHandler
 
 /**
  * 播放页「抽屉」：把整块 NowPlaying 放在主界面之上，整块上下平移。
@@ -229,6 +230,13 @@ fun PlayerSheetOverlay(
         val scope = rememberCoroutineScope()
         val progress = state.progress
         val bottomBarPx = state.bottomBarHeightPx
+
+        // 播放页是叠在导航之上的浮层，不是导航目的地：不接管返回键的话，
+        // 按返回会直接落到 NavHost（弹栈 / 退出应用），而播放页纹丝不动 ——
+        // 体感就是「在播放界面按返回键没用」。展开时先收起播放页。
+        BackHandler(enabled = state.isOpen) {
+            state.collapse(scope)
+        }
 
         Box(
             modifier = Modifier

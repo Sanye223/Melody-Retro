@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），  
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。  
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.11.2-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.11.3-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名           | Melody Retro                             |
 | applicationId | `com.melody.retro`                       |
 | namespace     | `com.melody.player`（历史原因保留，见下）           |
-| 版本            | 2.11.2-retro (versionCode 28)            |
+| 版本            | 2.11.3-retro (versionCode 29)            |
 | 支持            | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）  
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.11.2-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.11.3-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -212,6 +212,7 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 歌词「能显示但不滚动」                       | 只有一个原因：拿到的是没有时间轴的纯文本（`Lyrics.synced = false`）。来源标签会标注「无时间轴」。常见成因是标签把歌手写错 → 搜到山寨条目 → 那份歌词没时间轴                                                                                                                                                                                       |
 | 标签把歌手写成歌名时要纠方向 | 合辑碟常把 ARTIST 压成歌名（实测《倒带》标签 artist="倒带"，文件名 `蔡依林 - 倒带.flac`），原样显示就是「倒带 · 倒带」。`MediaLibraryRepository` 把 `artist == title` 判为脏标签、改用文件名兜底；**文件名可能是「歌手 - 歌名」也可能是「歌名 - 歌手」**，必须看拆出来的哪一半等于原歌名来决定方向（`guessReversed`），否则会把歌名与歌手对调。都拆不出来时宁显示「未知艺术家」 |
 | 播放进度别进全局 state（2.11.1 试过，为观感回滚） | 拆成独立 `PlayerManager.position` + 歌词只在换行更新，能把播放态 CPU 从 25/24/67% 降到 17/13.5/13.8%（歌词页优于原版 24.7%），但用户不接受「只在换行跳」的观感，要求回 2.11.0 的连续滚动。代码已回滚（`git checkout 74cc71b -- MelodyRetro/app`）。重做方向：保留连续位移 + 降重组频率（进度 500ms 或位移交给动画插值） |
+| 浮层页面必须自己接管返回键 | 播放页是叠在 NavHost 之上的浮层（不是导航目的地），不注册 `BackHandler` 的话按返回会直接落到 NavHost：轻则弹栈、重则退出应用，而播放页纹丝不动 —— 用户体感是「在播放界面按返回无效」。做法：`PlayerSheetOverlay` 里 `BackHandler(enabled = state.isOpen) { state.collapse(scope) }` |
 
 ---
 
@@ -288,7 +289,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置                                                         | 内容                                                               |
 | ---------------------------------------------------------- | ---------------------------------------------------------------- |
-| `MelodyRetro/dist/Melody-Retro-2.11.2-{debug,release}.apk` | 当前版本                                                             |
+| `MelodyRetro/dist/Melody-Retro-2.11.3-{debug,release}.apk` | 当前版本                                                             |
 | `backup/2026-10-27_retro-2.3.0/`                           | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`  
