@@ -137,10 +137,6 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import com.melody.player.ui.LocalFavoriteIds
 import com.melody.player.ui.LocalToggleFavorite
-import com.melody.player.playback.PlayerManager
-import androidx.compose.runtime.derivedStateOf
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 
 /** 点击歌词行后点亮保持的时长，之后恢复原状。 */
 private const val FLASH_DURATION_MS = 420L
@@ -431,26 +427,15 @@ private fun LyricsPage(state: PlayerUiState, accent: Color) {
 
         else -> LyricsContent(
             result = result,
+            positionMs = state.positionMs,
             accent = accent,
         )
     }
 }
 
 @Composable
-private fun LyricsContent(result: LyricsResult, accent: Color) {
+private fun LyricsContent(result: LyricsResult, positionMs: Long, accent: Color) {
     val lyrics = result.lyrics ?: return
-    // 进度每 250ms 变一次，但歌词只在「换行」时需要更新。
-    // 直接把进度喂进组合会让整个列表每秒重组 4 次，每行的弹簧 modifier 跟着重建，
-    // 表现就是歌词一直在轻微抖动、CPU 也高（实测 22%~60%）。
-    // 折成「当前行」并去重后，一秒钟的多数时间组合是静止的。
-    var activeLine by remember(lyrics) { mutableIntStateOf(-1) }
-    LaunchedEffect(lyrics) {
-        if (!lyrics.synced) return@LaunchedEffect
-        snapshotFlow { PlayerManager.position.value }
-            .map { lyrics.indexAt(it) }
-            .distinctUntilChanged()
-            .collect { activeLine = it }
-    }
     val fontScale = LocalLyricFontScale.current
     val spacing = LocalLyricSpacing.current.dp
     val lyricStyle = MaterialTheme.typography.bodyLarge.copy(
@@ -462,7 +447,7 @@ private fun LyricsContent(result: LyricsResult, accent: Color) {
 
     // 纯文本歌词没有时间轴：不做焦点动效，整篇一样亮。
     val hasTimeline = lyrics.synced
-    val activeIndex = if (hasTimeline) activeLine else -1
+    val activeIndex = if (hasTimeline) lyrics.indexAt(positionMs) else -1
     // 还没唱到第一句时，布局先锚在第一行
     val focusIndex = if (activeIndex >= 0) activeIndex else 0
 
@@ -797,15 +782,13 @@ private fun SeekBar(state: PlayerUiState, actions: PlayerActions, colors: RetroC
     var dragValue by remember { mutableFloatStateOf(0f) }
 
     val duration = state.durationMs.coerceAtLeast(1L)
-    // 进度单独订阅：全页不会因为每秒 4 次的进度更新而重组
-    val positionMs by PlayerManager.position.collectAsStateWithLifecycle()
     // 拖动时用本地值，松手后交回播放器 —— 否则 seek 的往返延迟会让圆点跳回去再过来
     val progress = if (dragging) {
         dragValue
     } else {
-        (positionMs.toFloat() / duration).coerceIn(0f, 1f)
+        (state.positionMs.toFloat() / duration).coerceIn(0f, 1f)
     }
-    val displayedPosition = if (dragging) (dragValue * duration).toLong() else positionMs
+    val displayedPosition = if (dragging) (dragValue * duration).toLong() else state.positionMs
 
     val density = LocalDensity.current
     val insetPx = with(density) { SeekThumbInset.toPx() }

@@ -12,7 +12,7 @@ pulled from the cover art of whatever's playing.
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)
 ![Compose](https://img.shields.io/badge/Jetpack%20Compose-BOM%202024.10-4285F4?logo=jetpackcompose&logoColor=white)
 ![Media3](https://img.shields.io/badge/Media3-1.4.1-FF6F00)
-![Version](https://img.shields.io/badge/version-2.11.1--retro-1f6feb)
+![Version](https://img.shields.io/badge/version-2.11.0--retro-1f6feb)
 [![Download](https://img.shields.io/github/v/release/Sanye223/Melody-Retro?label=download&color=2ea043)](https://github.com/Sanye223/Melody-Retro/releases/latest)
 ![Tests](https://img.shields.io/badge/tests-119%20passed-2ea043)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
@@ -141,7 +141,7 @@ cd MelodyRetro
 Ship it to a device (grant the audio permission on first launch):
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.11.1-release.apk
+adb install -r MelodyRetro/dist/Melody-Retro-2.11.0-release.apk
 ```
 
 > Heads up: the release variant is **signed with the debug keystore** on purpose, so you can just
@@ -260,6 +260,6 @@ source included. Full text in [`LICENSE`](LICENSE).
 
 <div align="center">
 
-<sub><code>com.melody.retro</code> · versionCode 27 · 2.11.1-retro</sub>
+<sub><code>com.melody.retro</code> · versionCode 26 · 2.11.0-retro</sub>
 
 </div>
