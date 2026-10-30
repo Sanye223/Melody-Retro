@@ -2,7 +2,7 @@
 
 > 这份文档是写给**接手这个项目的人或 AI** 的。技术细节在 `MelodyRetro/README.md`（很长，但准确），  
 > 这里只讲**怎么接手、从哪改、别踩哪些坑**。  
-> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.11.0-retro
+> 生成时间：2026-10-27 · 对应版本：Melody Retro 2.11.2-retro
 
 ---
 
@@ -23,7 +23,7 @@
 | 应用名           | Melody Retro                             |
 | applicationId | `com.melody.retro`                       |
 | namespace     | `com.melody.player`（历史原因保留，见下）           |
-| 版本            | 2.11.0-retro (versionCode 26)            |
+| 版本            | 2.11.2-retro (versionCode 28)            |
 | 支持            | minSdk 24 / targetSdk 35 / compileSdk 35 |
 
 > **只有一个版本了**。早期基于 Material Design 3 动态取色的「旋律」（`com.melody.player`，1.6.2）  
@@ -74,7 +74,7 @@ cd MelodyRetro
 ### 第 3 步：装到真机
 
 ```bash
-adb install -r MelodyRetro/dist/Melody-Retro-2.11.0-release.apk    # 已经有打好的
+adb install -r MelodyRetro/dist/Melody-Retro-2.11.2-release.apk    # 已经有打好的
 ```
 
 首次启动要授予「音乐和音频」权限（Android 13+ 是 `READ_MEDIA_AUDIO`）。
@@ -173,6 +173,7 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 
 ---
 
+
 ## 4. 已知的坑（都是真踩过的）
 
 | 坑                                 | 真相                                                                                                                                                                                                                                                                                 |
@@ -196,8 +197,7 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 历史播放（原「历史」）                       | 按钮改名「历史播放」；列表页每行显示「N 次 · 时长」；右上角三点菜单切「最近播放排序 / 播放次数排序」，选择存 `historySort` 设置。**播放满 30 秒（`PLAY_COUNT_THRESHOLD_MS`）才计一次数**——秒切试听不再刷次数；单曲循环的后续轮次不计（同一 mediaItem 不触发换曲）。**历史与次数是两回事**：换曲即 `touchPlay`（只刷 lastPlayedAt，历史立即出现），满阈值才 `recordPlay`（count+1）                               |
 | 收藏（我的最爱）                          | `FavoriteRepository`：DataStore StringSet 存 trackId。入口：播放页顶栏心形 + 历史等列表行的心形；For you 底部「我的最爱」分组（横向歌曲卡，收藏空则隐藏）；「我的最爱」按钮 → favorites 列表页                                                                                                                                                |
 | 用户资料（横幅图与昵称）                      | `ProfileRepository`（DataStore `user_profile`）。For you 横幅：有自定义图用图（压暗渐变保文字可读），否则用最近播放专辑主色渐变；头像显示昵称/歌手首字母；点击横幅或头像进 `UserInfoScreen`。选图用 OpenDocument 并必须 takePersistableUriPermission，否则重启后 uri 失效                                                                                    |
-| 播放进度不能进全局 state | `positionMs` 每 250ms 变，放进 `PlayerUiState` 会让所有订阅页面（歌曲 / 专辑 / For you）每秒重组 4 次，播放态 CPU 25%。拆成独立的 `PlayerManager.position`，只给进度条和歌词订阅 |
-| 已试过但被否决：拆进度流 + 歌词只换行更新（曾做于 2.11.1） | 实测能把播放态 CPU 从 25%/24%/67% 降到 17%/13.5%/13.8%（歌词页好于原版 24.7%），但用户不接受歌词「只在换行时跳」的观感，要求回到 2.11.0 的连续滚动。**代码已整体回滚到 2.11.0**（`git checkout 74cc71b -- MelodyRetro/app`）。若以后要重做，方向应是「保留连续位移 + 降低重组频率」（例如进度 500ms 或把行内位移交给动画插值），不要再走「只在换行更新」这条路 |
+| 播放进度不能进全局 state                   | `positionMs` 每 250ms 变，放进 `PlayerUiState` 会让所有订阅页面（歌曲 / 专辑 / For you）每秒重组 4 次，播放态 CPU 25%。拆成独立的 `PlayerManager.position`，只给进度条和歌词订阅                                                                                                                                                |
 | 圆角要有梯度，别一页一个值                     | 2026-10-28 统一为：**列表缩略图 12dp / 网格卡片 16dp / 大图（播放页与详情页封面）24dp / 容器 16dp**。改前是 10 / 14 / 16 / 24 四套并存，同一屏里对不上                                                                                                                                                                         |
 | 自绘背景的页面必须自己给内容色                   | 播放页根节点是 `Box + background(Brush.verticalGradient)`，不是 `Surface`，所以 `LocalContentColor` 一直是默认的纯黑。没写 `color` / `tint` 的 `Text`、`Icon` 在浅色渐变上勉强能看，深色模式下就是黑字黑图标糊在深色底上（用户截图圈了歌名和上一首/下一首）。用 `CompositionLocalProvider(LocalContentColor provides colorScheme.onSurface)` 包住内容，一处覆盖全部漏色控件 |
 | 搜索栏不要随滚动折叠（2.6.0，已回退）             | 做过「搜索栏跟着滚动缩进顶栏」，用户否决：「搜索直接默认放在右上角，恢复之前的顶栏，滑动列表时顶栏不要消失」。现在是 `LargeTopAppBar` 常驻（`exitUntilCollapsed`，只变小标题不滑走）+ 右上角搜索按钮，点开在标题下方 `AnimatedVisibility` 展开搜索栏                                                                                                                          |
@@ -210,11 +210,12 @@ GET https://lrclib.net/api/search?q=<关键词>      （或 /api/get?artist_name
 | 歌词里露出 `<00:00.245>`               | 那是**增强型 LRC 的逐字时间标签**（QQ 下载的曲子常见）。行级 `[mm:ss.xx]` 与逐字 `<mm:ss.xxx>` 都要从正文里剥掉；整行没有行级标签时，取**第一个**逐字标签当行时间（全取会一行拆成几十行）                                                                                                                                                                |
 | 取色死黑                              | `Palette` 要优先 `vibrant` 而不是 `dominant`，否则大面积黑封面的专辑会得到一片黑                                                                                                                                                                                                                           |
 | 歌词「能显示但不滚动」                       | 只有一个原因：拿到的是没有时间轴的纯文本（`Lyrics.synced = false`）。来源标签会标注「无时间轴」。常见成因是标签把歌手写错 → 搜到山寨条目 → 那份歌词没时间轴                                                                                                                                                                                       |
+| 标签把歌手写成歌名时要纠方向 | 合辑碟常把 ARTIST 压成歌名（实测《倒带》标签 artist="倒带"，文件名 `蔡依林 - 倒带.flac`），原样显示就是「倒带 · 倒带」。`MediaLibraryRepository` 把 `artist == title` 判为脏标签、改用文件名兜底；**文件名可能是「歌手 - 歌名」也可能是「歌名 - 歌手」**，必须看拆出来的哪一半等于原歌名来决定方向（`guessReversed`），否则会把歌名与歌手对调。都拆不出来时宁显示「未知艺术家」 |
+| 播放进度别进全局 state（2.11.1 试过，为观感回滚） | 拆成独立 `PlayerManager.position` + 歌词只在换行更新，能把播放态 CPU 从 25/24/67% 降到 17/13.5/13.8%（歌词页优于原版 24.7%），但用户不接受「只在换行跳」的观感，要求回 2.11.0 的连续滚动。代码已回滚（`git checkout 74cc71b -- MelodyRetro/app`）。重做方向：保留连续位移 + 降重组频率（进度 500ms 或位移交给动画插值） |
 
 ---
 
 ## 5. 测试
-
 
 ```bash
 cd MelodyRetro
@@ -287,7 +288,7 @@ adb logcat -s OnlineArtworkClient OnlineArtworkStore TrackInfo LyricsHttp QqMusi
 
 | 位置                                                         | 内容                                                               |
 | ---------------------------------------------------------- | ---------------------------------------------------------------- |
-| `MelodyRetro/dist/Melody-Retro-2.11.0-{debug,release}.apk` | 当前版本                                                             |
+| `MelodyRetro/dist/Melody-Retro-2.11.2-{debug,release}.apk` | 当前版本                                                             |
 | `backup/2026-10-27_retro-2.3.0/`                           | 上一版 2.3.0 的源码 zip + 2 个 APK（**只在本机**，`backup/` 在 `.gitignore` 里） |
 
 版本号约定：`versionCode` 每次发版 +1；版本线是 `2.x.y-retro`  

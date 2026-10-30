@@ -124,22 +124,44 @@ class MediaLibraryRepository(private val context: Context) {
                 val rawAlbumId = if (cursor.isNull(albumIdCol)) 0L else cursor.getLong(albumIdCol)
                 val rawArtistId = if (cursor.isNull(artistIdCol)) 0L else cursor.getLong(artistIdCol)
 
+                // 有的合辑碟会把 ARTIST 压成歌名（实测《倒带》的 artist 就是"倒带"），
+                // 这种标签没有任何信息量：列表会显示成"倒带 · 倒带"，
+                // 在线搜歌词也会拼出"倒带 倒带"。判为脏标签，一并走文件名兜底。
+                val artistTagDirty = rawArtist.isNotBlank() &&
+                    rawArtist.trim().equals(rawTitle.trim(), ignoreCase = true)
+
                 // 没有 ID3 标签的文件（下载来的 MP3 很常见）标签全空，
                 // 这时按文件名拆「歌名 - 艺术家」，否则列表里全是"未知曲目/未知艺术家"，
                 // 在线歌词和在线封面也没法查。
                 val guessed = if (rawArtist.isEmpty()) {
                     FileNameMeta.guesses(path ?: rawTitle).firstOrNull()
+                } else if (artistTagDirty) {
+                    // 标签是歌名：用文件名纠正。但方向要先判 —— 文件名既可能是
+                    // 「歌名 - 歌手」也可能是「歌手 - 歌名」（实测《倒带》是后者：
+                    // "蔡依林 - 倒带.flac"），取那一半等于原歌名的做锚点。
+                    FileNameMeta.guesses(path ?: rawTitle).firstOrNull { g ->
+                        g.title.trim().equals(rawTitle.trim(), ignoreCase = true) ||
+                            g.artist.trim().equals(rawTitle.trim(), ignoreCase = true)
+                    }
                 } else {
                     null
                 }
                 val useGuess = guessed != null &&
                     (rawTitle.isBlank() || guessed.artist.isNotBlank())
 
-                val title = if (useGuess) guessed!!.title else rawTitle
-                val artist = if (useGuess && guessed!!.artist.isNotBlank()) {
-                    guessed.artist
-                } else {
-                    rawArtist
+                // 拆出来的「artist」半段正好是原歌名 → 文件名其实是「歌手 - 歌名」
+                val guessReversed = guessed != null && rawTitle.isNotBlank() &&
+                    guessed.artist.trim().equals(rawTitle.trim(), ignoreCase = true)
+
+                val title = if (useGuess && !guessReversed) guessed!!.title else rawTitle
+                val artist = when {
+                    // 反序：前一半才是歌手
+                    guessReversed -> guessed!!.title
+                    useGuess && guessed!!.artist.isNotBlank() -> guessed.artist
+                    // 标签是歌名、文件名也拆不出来：宁可显示"未知艺术家"，
+                    // 也不要显示"倒带 · 倒带"
+                    artistTagDirty -> ""
+                    else -> rawArtist
                 }
 
                 result += Track(
